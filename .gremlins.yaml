@@ -1,0 +1,49 @@
+# gremlins mutation-testing config (github.com/go-gremlins/gremlins).
+# Measured efficacy is 82-98% across runs. Mutator coverage swings with the
+# machine's timeout count (loop-condition mutants on the tokenizer time out
+# under CPU load), so the efficacy gate is the meaningful one; the mutator-
+# coverage gate sits below the observed floor to avoid load-driven flakes.
+unleash:
+  # Quality gates: gremlins exits non-zero when these are not met.
+  # Efficacy = KILLED / (KILLED + LIVED). Mutant coverage = (KILLED + LIVED) / TOTAL.
+  threshold-efficacy: 75
+  threshold-mcover: 50
+  # Per-mutant test timeout = coefficient x the baseline test duration. A high
+  # value stops slow machines and CPU contention from turning killable mutants
+  # into spurious timeouts (which would otherwise deflate mutator coverage).
+  timeout-coefficient: 20
+  # Run only the package unit tests per mutant (fast). Set true to run the whole
+  # suite for each mutant once the suite is stable and you want stricter results.
+  integration: false
+  # Skip generated data: it carries no logic worth mutating.
+  exclude-files:
+    - "internal/vocab/substitutions_gen\\.go"
+
+# Enable the default, high-signal mutant families. The optional/noisy ones stay
+# off until the suite is mature.
+mutants:
+  arithmetic-base:
+    enabled: true
+  conditionals-boundary:
+    enabled: true
+  conditionals-negation:
+    enabled: true
+  increment-decrement:
+    # Flipping loop counters (i++ -> i--) turns the tokenizer's many for-loops
+    # into infinite loops. Those register as (slow, unstable) timeouts rather
+    # than clean kills, so this family stays off to keep the run deterministic.
+    enabled: false
+  invert-negatives:
+    enabled: true
+  invert-assignments:
+    enabled: false
+  invert-bitwise:
+    enabled: false
+  invert-bwassign:
+    enabled: false
+  invert-logical:
+    enabled: false
+  invert-loopctrl:
+    enabled: false
+  remove-self-assignments:
+    enabled: false

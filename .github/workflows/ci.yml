@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CGO_ENABLED: "0"
+
+jobs:
+  build-test:
+    name: build, lint, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: .go-version
+          cache: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.11.3
+
+      - name: Test with race + coverage
+        run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+      - name: Coverage summary
+        run: go tool cover -func=coverage.txt | tail -n 1
+
+      - name: Fuzz smoke
+        run: |
+          set -euo pipefail
+          # Fuzz targets live in ./internal/lint. Run each briefly if present so
+          # a not-yet-added target does not break CI.
+          for target in FuzzParse FuzzEngineRun; do
+            if go test -list "^$target$" ./internal/lint 2>/dev/null | grep -qx "$target"; then
+              echo "== fuzzing $target =="
+              go test -run '^$' -fuzz "^$target$" -fuzztime=20s ./internal/lint
+            else
+              echo "== $target not found in ./internal/lint, skipping =="
+            fi
+          done
+
+      - name: Generate idempotency
+        run: |
+          go run ./cmd/vale gen
+          git diff --exit-code -- internal/vocab/substitutions_gen.go
+
+      - name: Self-lint the docs (must be valid STE)
+        run: |
+          go build -o vale ./cmd/vale
+          ./vale lint CLAUDE.md AGENTS.md
+
+  mutation:
+    name: mutation testing
+    runs-on: ubuntu-latest
+    # Slower quality gate; do not block the merge on it while thresholds settle.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: .go-version
+          cache: true
+
+      - name: Install gremlins
+        run: go install github.com/go-gremlins/gremlins/cmd/gremlins@latest
+
+      - name: Run gremlins
+        run: gremlins unleash

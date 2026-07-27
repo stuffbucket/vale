@@ -1,0 +1,85 @@
+version: 2
+
+project_name: vale
+
+before:
+  hooks:
+    - go mod tidy
+    - go run ./cmd/vale gen
+
+builds:
+  - id: vale
+    binary: vale
+    main: ./cmd/vale
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: vale
+    ids:
+      - vale
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      - LICENSE
+      - README*
+      - SPEC.md
+
+checksum:
+  name_template: "checksums.txt"
+
+source:
+  enabled: true
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+brews:
+  - name: vale
+    ids:
+      - vale
+    repository:
+      owner: stuffbucket
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: "https://github.com/stuffbucket/vale"
+    description: "Simplified Technical English linter and stdio MCP server."
+    license: "MIT"
+    install: |
+      bin.install "vale"
+    test: |
+      system "#{bin}/vale", "version"
+
+release:
+  github:
+    owner: stuffbucket
+    name: vale
+  draft: false
