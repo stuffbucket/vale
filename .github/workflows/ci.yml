@@ -35,6 +35,10 @@ jobs:
           version: v2.11.3
 
       - name: Test with race + coverage
+        # The race detector requires cgo (and a C toolchain, present on the
+        # runner). The rest of the job stays CGO_ENABLED=0 for the pure-Go build.
+        env:
+          CGO_ENABLED: "1"
         run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
 
       - name: Coverage summary
