@@ -15,8 +15,8 @@ import (
 type VocabularyRule struct {
 	strict  bool
 	single  map[string][]string // one word -> approved replacements
-	phrases []vocabPhrase        // multiword entries, longest first
-	bare    map[string]bool      // strict-only words with no replacement
+	phrases []vocabPhrase       // multiword entries, longest first
+	bare    map[string]bool     // strict-only words with no replacement
 }
 
 // vocabPhrase is a multiword unapproved entry.

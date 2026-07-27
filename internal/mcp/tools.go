@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/stuffbucket/vale/internal/linter"
 	"github.com/stuffbucket/vale/internal/lint"
+	"github.com/stuffbucket/vale/internal/linter"
 )
 
 // tool describes one MCP tool for the tools/list response.
