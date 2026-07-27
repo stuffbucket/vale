@@ -1,0 +1,25 @@
+# Example configuration for the vale Simplified Technical English linter.
+# Copy this file to .vale-ste.yml and change the values as necessary.
+# All fields have defaults, so the file is optional.
+
+# minSeverity is the gate for the command-line exit code. The linter exits
+# with a failure when it finds a problem at this level or higher.
+# Values: error, warning, suggestion.
+minSeverity: error
+
+# strictVocabulary turns on the check for unapproved words that have no direct
+# replacement. It is off by default.
+strictVocabulary: false
+
+# sentence sets the word limits for the sentence-length rule.
+sentence:
+  procedureMax: 20
+  descriptionMax: 25
+
+# rules overrides the behavior of one rule. You can disable a rule or change
+# its severity.
+rules:
+  STE.PassiveVoice:
+    severity: warning
+  STE.Vocabulary:
+    disabled: false

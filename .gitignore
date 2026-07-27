@@ -1,0 +1,11 @@
+# Build output
+/dist/
+/vale
+/vale-ste
+*.out
+coverage.txt
+coverage.html
+
+# Editor and OS files
+.DS_Store
+*.swp
