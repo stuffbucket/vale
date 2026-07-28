@@ -69,7 +69,7 @@ brews:
     repository:
       owner: stuffbucket
       name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: "https://github.com/stuffbucket/vale"
     description: "Simplified Technical English linter and stdio MCP server."
     license: "MIT"
