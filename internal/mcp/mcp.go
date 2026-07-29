@@ -9,7 +9,9 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"path/filepath"
 
+	"github.com/stuffbucket/vale/internal/config"
 	"github.com/stuffbucket/vale/internal/linter"
 )
 
@@ -62,19 +64,96 @@ type rpcError struct {
 	Data    any    `json:"data,omitempty"`
 }
 
-// Server holds the linter and the server version.
+// Server holds the linter and the server version. When it runs in session mode
+// (built with NewSessionServer) it can also learn vocabulary: the
+// update_vocabulary tool persists terms to storePath and rebuilds the linter, so
+// later lint_text and fix_text calls in the same session honor them.
 type Server struct {
-	linter  *linter.Linter
-	version string
+	linter     *linter.Linter
+	version    string
+	dir        string // working dir for config reload
+	configPath string // explicit --config, if any
+	storePath  string // vocab store file
 }
 
-// NewServer builds a server that uses the given linter. The version is for the
-// serverInfo that the initialize response returns.
+// NewServer builds a server with a fixed linter (no vocabulary learning). The
+// version is for the serverInfo that the initialize response returns.
 func NewServer(l *linter.Linter, version string) *Server {
-	if version == "" {
-		version = "dev"
+	return &Server{
+		linter:    l,
+		version:   orDev(version),
+		dir:       ".",
+		storePath: config.DefaultVocabStore,
 	}
-	return &Server{linter: l, version: version}
+}
+
+// SessionOptions configures a session-mode server.
+type SessionOptions struct {
+	ConfigPath string // explicit --config, layered on reload
+	Dir        string // working directory (config discovery + store)
+	StorePath  string // vocab store; defaults to Dir/.vale-ste.vocab.yml
+	Version    string
+}
+
+// NewSessionServer builds a server that loads its config from the working
+// directory and can learn vocabulary during the session.
+func NewSessionServer(opts SessionOptions) (*Server, error) {
+	dir := opts.Dir
+	if dir == "" {
+		dir = "."
+	}
+	store := opts.StorePath
+	if store == "" {
+		store = filepath.Join(dir, config.DefaultVocabStore)
+	}
+	s := &Server{
+		version:    orDev(opts.Version),
+		dir:        dir,
+		configPath: opts.ConfigPath,
+		storePath:  store,
+	}
+	if err := s.reload(); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+// reload rebuilds the linter from the current config plus the vocab store. It
+// merges the store explicitly so a custom (non-discovered) store path still
+// applies; duplicates are harmless because the allow set is de-duplicated.
+func (s *Server) reload() error {
+	cfg, err := config.Load(s.configPath, s.dir)
+	if err != nil {
+		return err
+	}
+	allow, deny, err := config.ReadVocabStore(s.storePath)
+	if err != nil {
+		return err
+	}
+	cfg.Vocabulary.Allow = append(cfg.Vocabulary.Allow, allow...)
+	cfg.Vocabulary.Deny = append(cfg.Vocabulary.Deny, deny...)
+	s.linter = linter.New(cfg)
+	return nil
+}
+
+// learnVocabulary persists new terms to the store and rebuilds the linter.
+func (s *Server) learnVocabulary(addAllow, addDeny []string) (allow, deny []string, err error) {
+	allow, deny, err = config.UpdateVocabStore(s.storePath, addAllow, addDeny)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := s.reload(); err != nil {
+		return nil, nil, err
+	}
+	return allow, deny, nil
+}
+
+// orDev returns version, or "dev" when empty.
+func orDev(version string) string {
+	if version == "" {
+		return "dev"
+	}
+	return version
 }
 
 // Serve reads requests from in and writes responses to out until in ends. It

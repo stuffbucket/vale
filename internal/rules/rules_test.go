@@ -454,7 +454,7 @@ func TestSlopRulesOptIn(t *testing.T) {
 }
 
 func TestSlopVocabularyRuleFlagsWatchlist(t *testing.T) {
-	r := NewSlopVocabularyRule()
+	r := NewSlopVocabularyRule(nil)
 	got := r.Check(parsePlain("We delve into the intricate realm of valves."))
 	if len(got) < 2 {
 		t.Fatalf("expected several slop words flagged, got %d: %+v", len(got), got)

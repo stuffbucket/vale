@@ -14,6 +14,7 @@ Title, Status, Context, Decision, Consequences.
 | [0006](0006-ast-markdown-parsing-and-lsp.md) | AST-based Markdown parsing (goldmark), path scoping, and an LSP surface | Accepted (stages 1-2) |
 | [0007](0007-inline-suppression-directives.md) | Inline rule suppression via HTML-comment directives | Accepted |
 | [0008](0008-llm-fix-and-model-config.md) | LLM-assisted fix, shared model config, and progress UI | Accepted |
+| [0009](0009-session-vocab-and-slop-hook.md) | Session-adaptive vocabulary and slop-triggering hook | Accepted |
 
 ## Adding an ADR
 

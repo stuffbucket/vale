@@ -326,3 +326,39 @@ func mustWriteCfg(t *testing.T, path, body string) {
 		t.Fatal(err)
 	}
 }
+
+func TestVocabStoreRoundTripAndLayer(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, DefaultVocabStore)
+	allow, _, err := UpdateVocabStore(path, []string{"Copilot", "tauri"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(allow) != 2 {
+		t.Fatalf("allow = %v, want 2 terms", allow)
+	}
+	a, _, err := ReadVocabStore(path)
+	if err != nil || len(a) != 2 {
+		t.Fatalf("read back = %v, err %v", a, err)
+	}
+	// Merging again de-duplicates.
+	allow2, _, _ := UpdateVocabStore(path, []string{"copilot", "sidecar"}, nil)
+	if len(allow2) != 3 {
+		t.Errorf("after merge = %v, want 3 unique", allow2)
+	}
+	// Config.Load discovers the store as a high-precedence layer.
+	cfg, err := Load("", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.AllowedVocabulary()["copilot"] {
+		t.Errorf("learned term not in allowed vocabulary: %+v", cfg.Vocabulary.Allow)
+	}
+}
+
+func TestReadVocabStoreMissing(t *testing.T) {
+	a, d, err := ReadVocabStore(filepath.Join(t.TempDir(), "nope.yml"))
+	if err != nil || a != nil || d != nil {
+		t.Errorf("missing store = %v/%v/%v, want empty/nil", a, d, err)
+	}
+}

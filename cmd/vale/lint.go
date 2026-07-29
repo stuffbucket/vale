@@ -29,6 +29,7 @@ func cmdLint(args []string) int {
 	format := fs.String("format", "concise", "output format: concise, text, or json")
 	markdownFlag := fs.String("markdown", "auto", "markdown mode: auto, on, or off")
 	strict := fs.Bool("strict-vocabulary", false, "also report unapproved words with no replacement")
+	slopFlag := fs.Bool("slop", false, "enable the opt-in STE.Slop* rule family")
 	colorFlag := fs.String("color", "auto", "color: auto, always, or never")
 	audit := fs.Bool("audit", false, "audit only: print findings but always exit 0")
 	fix := fs.Bool("fix", false, "rewrite the file with a model to resolve findings; prints to stdout")
@@ -53,6 +54,9 @@ func cmdLint(args []string) int {
 	}
 	if *strict {
 		cfg.StrictVocabulary = true
+	}
+	if *slopFlag {
+		cfg.Slop.Enabled = true
 	}
 	if *minSeverity != "" {
 		cfg.MinSeverity = *minSeverity

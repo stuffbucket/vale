@@ -10,10 +10,16 @@ import (
 // one slop lexical category where per-occurrence flagging is defensible, because
 // the human baseline is low. It is a plain-language nudge, never a claim that
 // the text was written by a model. Part of the opt-in STE.Slop* family.
-type SlopVocabularyRule struct{}
+type SlopVocabularyRule struct {
+	allowed map[string]bool
+}
 
-// NewSlopVocabularyRule builds the rule.
-func NewSlopVocabularyRule() *SlopVocabularyRule { return &SlopVocabularyRule{} }
+// NewSlopVocabularyRule builds the rule. The allowed set (built-in technical
+// terms plus vocabulary.allow, including terms learned in a session) is never
+// flagged, so a user can approve a watchlist word and stop the warning.
+func NewSlopVocabularyRule(allowed map[string]bool) *SlopVocabularyRule {
+	return &SlopVocabularyRule{allowed: allowed}
+}
 
 // ID gives the stable identifier of the rule.
 func (r *SlopVocabularyRule) ID() string { return "STE.SlopVocabulary" }
@@ -34,6 +40,9 @@ func (r *SlopVocabularyRule) Check(doc *lint.Document) []lint.Finding {
 			if t.Kind != lint.KindWord {
 				continue
 			}
+			if r.allowed[t.Lower] {
+				continue
+			}
 			family, ok := slop.SlopWords[t.Lower]
 			if !ok {
 				continue
@@ -50,12 +59,13 @@ func (r *SlopVocabularyRule) Check(doc *lint.Document) []lint.Finding {
 }
 
 // slopRules returns the opt-in STE.Slop* family. Empty unless slop is enabled.
-func slopRules(enabled bool) []lint.Rule {
+// The allowed set lets the watchlist honor learned vocabulary.
+func slopRules(enabled bool, allowed map[string]bool) []lint.Rule {
 	if !enabled {
 		return nil
 	}
 	return []lint.Rule{
-		NewSlopVocabularyRule(),
+		NewSlopVocabularyRule(allowed),
 		NewSlopRestatementRule(),
 		NewSlopImpersonalHedgeRule(),
 		NewSlopNegativeParallelismRule(),

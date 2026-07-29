@@ -77,6 +77,25 @@ func (s *Server) toolsList() any {
 					"required": []string{"text"},
 				},
 			},
+			{
+				Name:        "update_vocabulary",
+				Description: "Learn project vocabulary for this session: approve terms (allow) so they stop being flagged, or re-check terms (deny). Persists to the vocab store so later lint_text and fix_text calls honor them.",
+				InputSchema: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"allow": map[string]any{
+							"type":        "array",
+							"items":       map[string]any{"type": "string"},
+							"description": "Terms or phrases to approve (stop flagging).",
+						},
+						"deny": map[string]any{
+							"type":        "array",
+							"items":       map[string]any{"type": "string"},
+							"description": "Terms to remove from the approved set so STE checks them again.",
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -100,6 +119,8 @@ func (s *Server) toolsCall(raw json.RawMessage) (any, *rpcError) {
 		return s.callListRules()
 	case "fix_text":
 		return s.callFixText(p.Arguments)
+	case "update_vocabulary":
+		return s.callUpdateVocabulary(p.Arguments)
 	default:
 		return nil, &rpcError{Code: codeInvalidParams, Message: "unknown tool: " + p.Name}
 	}
@@ -217,6 +238,33 @@ func (s *Server) callFixText(raw json.RawMessage) (any, *rpcError) {
 		return toolError(err.Error()), nil
 	}
 	return toolResultText(fixed), nil
+}
+
+// updateVocabularyArgs is the shape of the update_vocabulary arguments.
+type updateVocabularyArgs struct {
+	Allow []string `json:"allow"`
+	Deny  []string `json:"deny"`
+}
+
+// callUpdateVocabulary runs the update_vocabulary tool: it persists the terms and
+// rebuilds the linter so the rest of the session honors them.
+func (s *Server) callUpdateVocabulary(raw json.RawMessage) (any, *rpcError) {
+	var args updateVocabularyArgs
+	if len(raw) > 0 {
+		if err := json.Unmarshal(raw, &args); err != nil {
+			return nil, &rpcError{Code: codeInvalidParams, Message: "invalid arguments: " + err.Error()}
+		}
+	}
+	if len(args.Allow) == 0 && len(args.Deny) == 0 {
+		return toolError("Give at least one term in allow or deny."), nil
+	}
+	allow, deny, err := s.learnVocabulary(args.Allow, args.Deny)
+	if err != nil {
+		return toolError(err.Error()), nil
+	}
+	return toolResultText(fmt.Sprintf(
+		"Vocabulary updated (stored in %s): %d approved, %d re-checked.",
+		s.storePath, len(allow), len(deny))), nil
 }
 
 // callListRules runs the list_rules tool.

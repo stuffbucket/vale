@@ -77,6 +77,7 @@ directory, vale walks it and checks files with a known text ending (`.md`,
 | `--audit` | bool | `false` | Audit only: print findings but always exit 0 (never fail the caller). |
 | `--markdown` | `auto`, `on`, `off` | `auto` | Markdown mode. `auto` decides from the file ending. |
 | `--strict-vocabulary` | bool | `false` | Also report unapproved words that have no direct replacement. |
+| `--slop` | bool | `false` | Enable the opt-in `STE.Slop*` rule family for this run. |
 | `--color` | `auto`, `always`, `never` | `auto` | Color the severity word. `auto` colors only when stdout is a terminal and `NO_COLOR` is unset. |
 | `--fix` | bool | `false` | Rewrite the file with a model so it resolves its findings; prints to stdout (see [Fixing a document](#fixing-a-document)). |
 
@@ -337,19 +338,35 @@ message on each line (newline-delimited), and it reports MCP protocol version
 - **`fix_text`** — rewrite text with a model so it resolves its findings; returns
   the corrected document. Arguments: `text` (required), `filename`, `model`
   (defaults to `model.name`), `temperature` (optional override), and `maxTokens`.
+- **`update_vocabulary`** — learn project vocabulary for the session. Arguments:
+  `allow` (terms to approve) and `deny` (terms to re-check). It persists terms to
+  the vocab store and rebuilds the linter, so later `lint_text` and `fix_text`
+  calls honor them — the server adapts to the session.
+
+The server runs in session mode. Learned terms persist to a vocab store
+(`.vale-ste.vocab.yml` by default), which the CLI and the hook also read via
+config layering. Scope the store to a session with `vale mcp --vocab-store
+/tmp/vale-<session>.yml`, or leave the default to share learning across a
+project.
 
 ### Client configuration
 
 The repository ships a ready-to-use MCP definition and a Claude Code plugin.
 
 **As a Claude Code plugin** (recommended). The repo is a plugin marketplace, so
-it installs the MCP server and the `ste-lint` skill together:
+it installs the MCP server, the `ste-lint` skill, and a lint-on-write hook
+together:
 
 ```shell
 /plugin marketplace add stuffbucket/vale
 /plugin install vale@stuffbucket
 /reload-plugins
 ```
+
+The plugin's [`PostToolUse` hook](hooks/lint-on-write.py) lints every text file
+the agent writes or edits (`--slop --audit`) and feeds any findings back as
+context. So vale triggers on slop itself, rather than waiting for the agent to
+call a tool — while the MCP definition stays a single tight server.
 
 Install the `vale` binary first (the plugin launches it): `brew install
 stuffbucket/tap/vale`. The plugin's server definition lives in

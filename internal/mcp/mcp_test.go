@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stuffbucket/vale/internal/config"
+	"github.com/stuffbucket/vale/internal/lint"
 	"github.com/stuffbucket/vale/internal/linter"
 )
 
@@ -64,15 +67,15 @@ func TestServeFullSession(t *testing.T) {
 	// tools/list has 3 tools
 	listResult := msgs[1]["result"].(map[string]any)
 	tools := listResult["tools"].([]any)
-	if len(tools) != 3 {
-		t.Fatalf("tools = %d, want 3", len(tools))
+	if len(tools) != 4 {
+		t.Fatalf("tools = %d, want 4", len(tools))
 	}
 	names := map[string]bool{}
 	for _, tl := range tools {
 		names[tl.(map[string]any)["name"].(string)] = true
 	}
-	if !names["lint_text"] || !names["list_rules"] || !names["fix_text"] {
-		t.Errorf("tool names = %v, want lint_text, list_rules, fix_text", names)
+	if !names["lint_text"] || !names["list_rules"] || !names["fix_text"] || !names["update_vocabulary"] {
+		t.Errorf("tool names = %v, want lint_text, list_rules, fix_text, update_vocabulary", names)
 	}
 
 	// tools/call returns content[0].text containing "findings"
@@ -245,5 +248,43 @@ func TestInitializeVersionNegotiation(t *testing.T) {
 	res, _ = s.initialize(nil)
 	if v := res.(map[string]any)["protocolVersion"]; v != protocolVersion {
 		t.Errorf("no-params version = %v, want %s", v, protocolVersion)
+	}
+}
+
+func hasRuleFinding(fs []lint.Finding, id string) bool {
+	for _, f := range fs {
+		if f.RuleID == id {
+			return true
+		}
+	}
+	return false
+}
+
+func TestSessionServerLearnsVocabulary(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "xdg"))
+	t.Setenv("XDG_CONFIG_DIRS", filepath.Join(dir, "xdgdirs"))
+	// Slop on so the watchlist word "delve" is flagged.
+	if err := os.WriteFile(filepath.Join(dir, ".vale-ste.yml"), []byte("slop:\n  enabled: true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := NewSessionServer(SessionOptions{Dir: dir, Version: "t"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := s.linter.LintText("x.md", "We delve here.", linter.MarkdownOn)
+	if !hasRuleFinding(before, "STE.SlopVocabulary") {
+		t.Fatal("delve should be flagged before learning")
+	}
+	if _, _, err := s.learnVocabulary([]string{"delve"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	after := s.linter.LintText("x.md", "We delve here.", linter.MarkdownOn)
+	if hasRuleFinding(after, "STE.SlopVocabulary") {
+		t.Errorf("delve should be honored after learning: %+v", after)
+	}
+	// The store persisted.
+	if _, statErr := os.Stat(filepath.Join(dir, config.DefaultVocabStore)); statErr != nil {
+		t.Errorf("vocab store not written: %v", statErr)
 	}
 }

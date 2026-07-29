@@ -90,6 +90,10 @@ func discoverLayers(dir, explicit string) []string {
 	if p := searchUp(dir, localFileNames); p != "" {
 		layers = append(layers, p)
 	}
+	// The vocab store (learned terms) sits just below an explicit --config.
+	if p := searchUp(dir, vocabStoreNames); p != "" {
+		layers = append(layers, p)
+	}
 	if explicit != "" {
 		layers = append(layers, explicit)
 	}

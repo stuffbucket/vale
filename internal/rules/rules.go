@@ -23,5 +23,5 @@ func Default(cfg *config.Config) []lint.Rule {
 		NewOneInstructionRule(),
 		NewVocabularyRule(cfg.StrictVocabulary, cfg.AllowedVocabulary()),
 	}
-	return append(base, slopRules(cfg.Slop.Enabled)...)
+	return append(base, slopRules(cfg.Slop.Enabled, cfg.AllowedVocabulary())...)
 }
