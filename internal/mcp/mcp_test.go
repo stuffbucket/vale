@@ -225,3 +225,25 @@ func TestServeContextCancelled(t *testing.T) {
 		t.Errorf("err = %v, want context.Canceled", err)
 	}
 }
+
+func TestInitializeVersionNegotiation(t *testing.T) {
+	s := NewServer(nil, "test")
+	// A supported version is echoed.
+	res, rpcErr := s.initialize(json.RawMessage(`{"protocolVersion":"2025-06-18"}`))
+	if rpcErr != nil {
+		t.Fatal(rpcErr)
+	}
+	if v := res.(map[string]any)["protocolVersion"]; v != "2025-06-18" {
+		t.Errorf("supported version = %v, want 2025-06-18", v)
+	}
+	// An unsupported version falls back to the server's preferred version.
+	res, _ = s.initialize(json.RawMessage(`{"protocolVersion":"2099-01-01"}`))
+	if v := res.(map[string]any)["protocolVersion"]; v != protocolVersion {
+		t.Errorf("unsupported version = %v, want %s", v, protocolVersion)
+	}
+	// No params falls back to the preferred version.
+	res, _ = s.initialize(nil)
+	if v := res.(map[string]any)["protocolVersion"]; v != protocolVersion {
+		t.Errorf("no-params version = %v, want %s", v, protocolVersion)
+	}
+}

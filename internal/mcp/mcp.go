@@ -13,9 +13,19 @@ import (
 	"github.com/stuffbucket/vale/internal/linter"
 )
 
-// protocolVersion is the MCP version that the server reports when the client
-// does not ask for one.
+// protocolVersion is the MCP revision the server prefers when the client asks
+// for one it does not support.
 const protocolVersion = "2024-11-05"
+
+// supportedVersions are the MCP revisions the server will speak. Its surface
+// (tools with text content) is identical across these, so it accepts any of
+// them and echoes the client's choice; an unsupported request falls back to the
+// preferred version above.
+var supportedVersions = map[string]bool{
+	"2024-11-05": true,
+	"2025-03-26": true,
+	"2025-06-18": true,
+}
 
 // serverName and serverVersion identify the server to the client.
 const serverName = "vale-ste"
@@ -130,14 +140,16 @@ func (s *Server) dispatch(req request) (any, *rpcError) {
 	}
 }
 
-// initialize answers the initialize request.
+// initialize answers the initialize request. It negotiates the protocol
+// version: it echoes the client's requested version when the server supports it,
+// and otherwise returns the server's preferred version.
 func (s *Server) initialize(params json.RawMessage) (any, *rpcError) {
 	version := protocolVersion
 	if len(params) > 0 {
 		var p struct {
 			ProtocolVersion string `json:"protocolVersion"`
 		}
-		if err := json.Unmarshal(params, &p); err == nil && p.ProtocolVersion != "" {
+		if err := json.Unmarshal(params, &p); err == nil && supportedVersions[p.ProtocolVersion] {
 			version = p.ProtocolVersion
 		}
 	}
