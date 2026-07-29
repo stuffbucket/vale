@@ -36,6 +36,14 @@ vocabulary:
   # deny removes terms from the approved set, so STE checks them again.
   deny: []
 
+# files scopes which paths a directory walk considers. Globs match the path and
+# the base name; a leading "**/" matches the base name at any depth. exclude
+# wins over include, and a .valeignore file adds exclude patterns. Explicitly
+# named file arguments are always linted.
+files:
+  include: [] # when set, only matching files are linted
+  exclude: ["vendor/*", "**/CHANGELOG.md"]
+
 # rules overrides the behavior of one rule. You can disable a rule or change
 # its severity.
 rules:

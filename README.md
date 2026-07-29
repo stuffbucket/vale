@@ -188,6 +188,13 @@ sentence:
   procedureMax: 20
   descriptionMax: 25
 
+# Scope which paths a directory walk considers (globs; exclude wins over
+# include). A .valeignore file adds exclude patterns too. Explicitly named file
+# arguments are always linted.
+files:
+  include: [] # e.g. ["docs/**/*.md"] — when set, only matches are linted
+  exclude: ["vendor/*", "**/CHANGELOG.md"]
+
 # Override one rule: disable it or change its severity.
 rules:
   STE.PassiveVoice:
@@ -195,6 +202,16 @@ rules:
   STE.Vocabulary:
     disabled: false
 ```
+
+## How Markdown is parsed
+
+vale parses Markdown to a real AST ([goldmark](https://github.com/yuin/goldmark),
+CommonMark + GFM) and lints **prose nodes only** — paragraphs, headings, list
+items, and table cells. It skips structure by construction: fenced and inline
+code, raw HTML and `<style>`/`<script>` CSS, link and image URLs, table
+delimiters, and YAML frontmatter. So HTML/CSS embedded in a document does not
+produce spurious findings, and positions stay `path:line:col` accurate. Pass
+`--markdown off` to lint a file as plain text instead.
 
 Fields:
 

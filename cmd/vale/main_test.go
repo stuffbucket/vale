@@ -246,7 +246,7 @@ func TestCollectFiles(t *testing.T) {
 	}
 	mustWrite(t, filepath.Join(sub, "c.md"), "x") // should be skipped
 
-	files, err := collectFiles([]string{dir})
+	files, err := collectFiles([]string{dir}, pathFilter{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +266,7 @@ func TestCollectFilesDedupesExplicit(t *testing.T) {
 	dir := t.TempDir()
 	f := filepath.Join(dir, "a.txt")
 	mustWrite(t, f, "x")
-	files, err := collectFiles([]string{f, f})
+	files, err := collectFiles([]string{f, f}, pathFilter{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -276,7 +276,7 @@ func TestCollectFilesDedupesExplicit(t *testing.T) {
 }
 
 func TestCollectFilesMissing(t *testing.T) {
-	if _, err := collectFiles([]string{filepath.Join(t.TempDir(), "nope")}); err == nil {
+	if _, err := collectFiles([]string{filepath.Join(t.TempDir(), "nope")}, pathFilter{}); err == nil {
 		t.Fatal("expected error for missing path")
 	}
 }
@@ -364,5 +364,39 @@ func mustWrite(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestPathFilterExcludeAndInclude(t *testing.T) {
+	f := pathFilter{exclude: []string{"vendor/*", "*.gen.md"}, include: []string{"docs/*.md"}}
+	cases := map[string]bool{
+		"docs/guide.md":   true,  // included
+		"vendor/x.md":     false, // excluded dir glob
+		"docs/api.gen.md": false, // excluded by *.gen.md (base match)
+		"other/x.md":      false, // not in include set
+	}
+	for path, want := range cases {
+		if got := f.allows(path); got != want {
+			t.Errorf("allows(%q) = %v, want %v", path, got, want)
+		}
+	}
+}
+
+func TestPathFilterDoublestarBase(t *testing.T) {
+	f := pathFilter{exclude: []string{"**/CHANGELOG.md"}}
+	if !f.excludes("a/b/c/CHANGELOG.md") {
+		t.Errorf("**/ pattern should match nested base name")
+	}
+	if f.excludes("a/b/README.md") {
+		t.Errorf("should not exclude non-matching file")
+	}
+}
+
+func TestReadValeIgnore(t *testing.T) {
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, ".valeignore"), "# comment\n\nvendor/*\n*.tmp.md\n")
+	pats := readValeIgnore(dir)
+	if len(pats) != 2 || pats[0] != "vendor/*" || pats[1] != "*.tmp.md" {
+		t.Errorf("readValeIgnore = %v, want [vendor/* *.tmp.md]", pats)
 	}
 }

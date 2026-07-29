@@ -66,7 +66,8 @@ func cmdLint(args []string) int {
 	}
 
 	lnt := linter.New(cfg)
-	files, err := collectFiles(paths)
+	filter := newPathFilter(cfg.Files.Include, cfg.Files.Exclude, ".")
+	files, err := collectFiles(paths, filter)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "lint: %v\n", err)
 		return 2
@@ -133,8 +134,10 @@ func parseMarkdownMode(value string) (linter.MarkdownMode, error) {
 }
 
 // collectFiles turns the paths into a sorted list of files. It walks
-// directories and keeps only files with a known ending.
-func collectFiles(paths []string) ([]string, error) {
+// directories and keeps only files with a known ending that the filter allows.
+// An explicitly named file argument is always kept; the filter applies only to
+// files discovered by walking a directory.
+func collectFiles(paths []string, filter pathFilter) ([]string, error) {
 	var files []string
 	seen := map[string]bool{}
 	add := func(p string) {
@@ -149,7 +152,7 @@ func collectFiles(paths []string) ([]string, error) {
 			return nil, err
 		}
 		if !info.IsDir() {
-			add(p)
+			add(p) // explicit file: always linted
 			continue
 		}
 		err = filepath.WalkDir(p, func(path string, d fs.DirEntry, err error) error {
@@ -157,12 +160,12 @@ func collectFiles(paths []string) ([]string, error) {
 				return err
 			}
 			if d.IsDir() {
-				if d.Name() == ".git" || d.Name() == "node_modules" {
+				if d.Name() == ".git" || d.Name() == "node_modules" || filter.excludes(path) {
 					return filepath.SkipDir
 				}
 				return nil
 			}
-			if lintExtensions[strings.ToLower(filepath.Ext(path))] {
+			if lintExtensions[strings.ToLower(filepath.Ext(path))] && filter.allows(path) {
 				add(path)
 			}
 			return nil
@@ -173,6 +176,82 @@ func collectFiles(paths []string) ([]string, error) {
 	}
 	sort.Strings(files)
 	return files, nil
+}
+
+// pathFilter decides which walked files to lint, from the config's
+// files.include / files.exclude globs plus a .valeignore file.
+type pathFilter struct {
+	include []string
+	exclude []string
+}
+
+// newPathFilter builds a filter and folds in patterns from the nearest
+// .valeignore, searching up from dir.
+func newPathFilter(include, exclude []string, dir string) pathFilter {
+	return pathFilter{
+		include: include,
+		exclude: append(append([]string{}, exclude...), readValeIgnore(dir)...),
+	}
+}
+
+// allows reports whether a file passes the filter: not excluded, and (when an
+// include list is set) matching it.
+func (f pathFilter) allows(path string) bool {
+	if f.excludes(path) {
+		return false
+	}
+	return len(f.include) == 0 || matchAny(f.include, path)
+}
+
+// excludes reports whether a path matches any exclude pattern.
+func (f pathFilter) excludes(path string) bool { return matchAny(f.exclude, path) }
+
+// matchAny matches a path against glob patterns, testing the full slash path,
+// the base name, and (for a "**/" prefix) the base name at any depth.
+func matchAny(patterns []string, path string) bool {
+	clean := filepath.ToSlash(filepath.Clean(path))
+	base := filepath.Base(clean)
+	for _, p := range patterns {
+		if ok, _ := filepath.Match(p, clean); ok {
+			return true
+		}
+		if ok, _ := filepath.Match(p, base); ok {
+			return true
+		}
+		if rest, found := strings.CutPrefix(p, "**/"); found {
+			if ok, _ := filepath.Match(rest, base); ok {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// readValeIgnore returns the glob patterns from the nearest .valeignore, walking
+// up from dir. Blank lines and lines starting with "#" are ignored.
+func readValeIgnore(dir string) []string {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return nil
+	}
+	for {
+		data, err := os.ReadFile(filepath.Join(abs, ".valeignore"))
+		if err == nil {
+			var pats []string
+			for _, line := range strings.Split(string(data), "\n") {
+				line = strings.TrimSpace(line)
+				if line != "" && !strings.HasPrefix(line, "#") {
+					pats = append(pats, line)
+				}
+			}
+			return pats
+		}
+		parent := filepath.Dir(abs)
+		if parent == abs {
+			return nil
+		}
+		abs = parent
+	}
 }
 
 // gateFailed tells if any finding reaches the gate severity.

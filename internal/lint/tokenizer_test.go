@@ -1,6 +1,9 @@
 package lint
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseSimpleSentence(t *testing.T) {
 	doc := Parse("t.txt", "Hello world.", ParseOptions{})
@@ -359,4 +362,57 @@ func FuzzParse(f *testing.F) {
 			}
 		}
 	})
+}
+
+func TestParseMarkdownHTMLBlockAndCSSHidden(t *testing.T) {
+	text := "Real prose here.\n\n<style>\n.card { color: #ffffff; margin: 0; }\n</style>\n\nMore prose."
+	doc := Parse("t.md", text, ParseOptions{Markdown: true})
+	for _, tok := range sentenceTexts(doc) {
+		for _, leak := range []string{"style", "card", "color", "ffffff", "margin"} {
+			if strings.EqualFold(tok, leak) {
+				t.Errorf("CSS/HTML leaked token %q", tok)
+			}
+		}
+	}
+	if !sliceHas(sentenceTexts(doc), "Real") || !sliceHas(sentenceTexts(doc), "prose") {
+		t.Errorf("real prose dropped: %v", sentenceTexts(doc))
+	}
+}
+
+func TestParseMarkdownFrontmatterHidden(t *testing.T) {
+	text := "---\ntitle: My Doc\ndescription: dont lint this\n---\n\nActual sentence."
+	doc := Parse("t.md", text, ParseOptions{Markdown: true})
+	for _, tok := range sentenceTexts(doc) {
+		if strings.EqualFold(tok, "title") || strings.EqualFold(tok, "dont") || strings.EqualFold(tok, "description") {
+			t.Errorf("frontmatter leaked token %q; tokens=%v", tok, sentenceTexts(doc))
+		}
+	}
+	if !sliceHas(sentenceTexts(doc), "Actual") {
+		t.Errorf("body prose dropped: %v", sentenceTexts(doc))
+	}
+}
+
+func TestParseMarkdownInlineHTMLTagStrippedKeepsText(t *testing.T) {
+	doc := Parse("t.md", "A word <b>kept</b> here.", ParseOptions{Markdown: true})
+	texts := sentenceTexts(doc)
+	if !sliceHas(texts, "kept") {
+		t.Errorf("inline HTML inner text dropped: %v", texts)
+	}
+	if sliceHas(texts, "b") {
+		t.Errorf("inline HTML tag leaked: %v", texts)
+	}
+}
+
+func TestParseMarkdownTableCellsAreProseNotDelimiters(t *testing.T) {
+	text := "| Head | Note |\n|------|------|\n| open | valve |"
+	doc := Parse("t.md", text, ParseOptions{Markdown: true})
+	texts := sentenceTexts(doc)
+	if !sliceHas(texts, "valve") {
+		t.Errorf("table cell text dropped: %v", texts)
+	}
+	for _, tok := range texts {
+		if strings.Contains(tok, "|") || strings.Contains(tok, "---") {
+			t.Errorf("table delimiter leaked as token %q", tok)
+		}
+	}
 }

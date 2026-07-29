@@ -85,7 +85,12 @@ type ParseOptions struct {
 func Parse(path, text string, opts ParseOptions) *Document {
 	doc := &Document{Path: path, Text: text}
 	doc.Lines = splitLines(text)
-	prose := maskLines(doc.Lines, opts.Markdown)
+	var prose []proseLine
+	if opts.Markdown {
+		prose = maskMarkdownProse(text, doc.Lines)
+	} else {
+		prose = maskLines(doc.Lines)
+	}
 	blocks := groupBlocks(prose, opts.Markdown)
 	for _, b := range blocks {
 		toks := tokenizeBlock(b)
@@ -114,157 +119,21 @@ type proseLine struct {
 	blank bool // the source line held only structure or space
 }
 
-// maskLines turns source lines into prose lines. When markdown is on, it hides
-// fenced code, inline code, and link destinations, and marks headings and list
-// items. When markdown is off, it keeps the text as is.
-func maskLines(lines []string, markdown bool) []proseLine {
+// maskLines turns source lines into prose lines for non-Markdown text: every
+// line is prose as written. Markdown goes through maskMarkdownProse instead
+// (AST-based), so the line heuristics that used to live here are gone.
+func maskLines(lines []string) []proseLine {
 	out := make([]proseLine, 0, len(lines))
-	inFence := false
 	for i, src := range lines {
 		runes := []rune(src)
-		pl := proseLine{runes: append([]rune(nil), runes...), line: i + 1, kind: BlockParagraph}
-		if !markdown {
-			pl.blank = strings.TrimSpace(src) == ""
-			out = append(out, pl)
-			continue
-		}
-		trimmed := strings.TrimSpace(src)
-		if isFence(trimmed) {
-			inFence = !inFence
-			pl.blank = true
-			blankRunes(pl.runes)
-			out = append(out, pl)
-			continue
-		}
-		if inFence {
-			pl.blank = true
-			blankRunes(pl.runes)
-			out = append(out, pl)
-			continue
-		}
-		if lvl := headingLevel(trimmed); lvl > 0 {
-			pl.kind = BlockHeading
-			hideLeadingMarks(pl.runes, lvl)
-		} else if n := listMarkerWidth(src); n > 0 {
-			pl.kind = BlockListItem
-			hideRange(pl.runes, 0, n)
-		}
-		maskInline(pl.runes)
-		pl.blank = strings.TrimSpace(string(pl.runes)) == ""
-		out = append(out, pl)
+		out = append(out, proseLine{
+			runes: append([]rune(nil), runes...),
+			line:  i + 1,
+			kind:  BlockParagraph,
+			blank: strings.TrimSpace(src) == "",
+		})
 	}
 	return out
-}
-
-// isFence tells if a trimmed line starts a fenced code block.
-func isFence(trimmed string) bool {
-	return strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~")
-}
-
-// headingLevel gives the heading level of a trimmed line, or 0 if the line is
-// not a heading. It also needs a space after the marks.
-func headingLevel(trimmed string) int {
-	n := 0
-	for n < len(trimmed) && trimmed[n] == '#' {
-		n++
-	}
-	if n == 0 || n > 6 {
-		return 0
-	}
-	if n < len(trimmed) && trimmed[n] != ' ' {
-		return 0
-	}
-	return n
-}
-
-// listMarkerWidth gives the count of leading runes that form a list marker on a
-// source line, or 0 if there is no marker. It accepts bullet markers and
-// numbered markers.
-func listMarkerWidth(src string) int {
-	i := 0
-	for i < len(src) && (src[i] == ' ' || src[i] == '\t') {
-		i++
-	}
-	if i >= len(src) {
-		return 0
-	}
-	switch src[i] {
-	case '-', '*', '+':
-		if i+1 < len(src) && src[i+1] == ' ' {
-			return i + 2
-		}
-	default:
-		j := i
-		for j < len(src) && src[j] >= '0' && src[j] <= '9' {
-			j++
-		}
-		if j > i && j < len(src) && (src[j] == '.' || src[j] == ')') && j+1 < len(src) && src[j+1] == ' ' {
-			return j + 2
-		}
-	}
-	return 0
-}
-
-// maskInline hides inline code spans, link destinations, and autolinks in a
-// rune slice by turning their runes into spaces.
-func maskInline(runes []rune) {
-	// Inline code spans between backticks.
-	i := 0
-	for i < len(runes) {
-		if runes[i] == '`' {
-			j := i + 1
-			for j < len(runes) && runes[j] != '`' {
-				j++
-			}
-			if j < len(runes) {
-				hideRange(runes, i, j+1)
-				i = j + 1
-				continue
-			}
-		}
-		i++
-	}
-	// Link destinations: ](...) becomes spaces, and autolinks <...>.
-	for i := 0; i+1 < len(runes); i++ {
-		if runes[i] == ']' && runes[i+1] == '(' {
-			j := i + 2
-			for j < len(runes) && runes[j] != ')' {
-				j++
-			}
-			end := j
-			if end < len(runes) {
-				end++
-			}
-			hideRange(runes, i+1, end)
-		}
-	}
-}
-
-func blankRunes(runes []rune) {
-	for i := range runes {
-		runes[i] = ' '
-	}
-}
-
-func hideRange(runes []rune, start, end int) {
-	if start < 0 {
-		start = 0
-	}
-	if end > len(runes) {
-		end = len(runes)
-	}
-	for i := start; i < end; i++ {
-		runes[i] = ' '
-	}
-}
-
-// hideLeadingMarks hides the heading marks and following spaces.
-func hideLeadingMarks(runes []rune, level int) {
-	i := 0
-	for i < len(runes) && runes[i] == ' ' {
-		i++
-	}
-	hideRange(runes, i, i+level)
 }
 
 // block is a run of prose lines that forms one unit of text.

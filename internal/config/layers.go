@@ -34,7 +34,13 @@ type fileConfig struct {
 	StrictVocabulary *bool                  `yaml:"strictVocabulary"`
 	Sentence         *sentenceFile          `yaml:"sentence"`
 	Vocabulary       *vocabularyFile        `yaml:"vocabulary"`
+	Files            *filesFile             `yaml:"files"`
 	Rules            map[string]RuleSetting `yaml:"rules"`
+}
+
+type filesFile struct {
+	Include []string `yaml:"include"`
+	Exclude []string `yaml:"exclude"`
 }
 
 type sentenceFile struct {
@@ -180,6 +186,10 @@ func mergeFile(acc *Config, fc *fileConfig) {
 		if fc.Vocabulary.BuiltinTechnicalTerms != nil {
 			acc.Vocabulary.BuiltinTechnicalTerms = fc.Vocabulary.BuiltinTechnicalTerms
 		}
+	}
+	if fc.Files != nil {
+		acc.Files.Include = append(acc.Files.Include, fc.Files.Include...)
+		acc.Files.Exclude = append(acc.Files.Exclude, fc.Files.Exclude...)
 	}
 	if len(fc.Rules) > 0 && acc.Rules == nil {
 		acc.Rules = map[string]RuleSetting{}

@@ -1,6 +1,6 @@
 # 0006. AST-based Markdown parsing, path scoping, and an LSP surface
 
-Status: Proposed
+Status: Accepted (stages 1-2 shipped in v0.6.0; stage 3, the LSP, remains proposed)
 
 ## Context
 

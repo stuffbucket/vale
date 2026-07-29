@@ -34,6 +34,15 @@ type Vocabulary struct {
 	BuiltinTechnicalTerms *bool `yaml:"builtinTechnicalTerms"`
 }
 
+// Files scopes which paths the linter considers when it walks a directory.
+// Both lists are globs (filepath.Match syntax, matched against the path and the
+// base name); a leading "**/" also matches the base name at any depth. exclude
+// wins over include. Explicitly named file arguments are always linted.
+type Files struct {
+	Include []string `yaml:"include"`
+	Exclude []string `yaml:"exclude"`
+}
+
 // Config is the full configuration.
 type Config struct {
 	// MinSeverity is the gate for the command line. The linter fails when it
@@ -44,6 +53,7 @@ type Config struct {
 	StrictVocabulary bool                   `yaml:"strictVocabulary"`
 	Sentence         Sentence               `yaml:"sentence"`
 	Vocabulary       Vocabulary             `yaml:"vocabulary"`
+	Files            Files                  `yaml:"files"`
 	Rules            map[string]RuleSetting `yaml:"rules"`
 }
 
