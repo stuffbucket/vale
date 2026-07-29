@@ -27,6 +27,11 @@ Why slop looks the way it does — the generation mechanisms upstream of the tex
 - [Lexical Spikes](root-causes/lexical-spikes.md) — how a small set of rare words
   jumped from near-zero to a post-2023 spike, and the economic/training pressures
   behind the register.
+- [Model Signatures](root-causes/model-signatures.md) — the OpenAI/ChatGPT and
+  Anthropic/Claude family lexical fingerprints, and why a watchlist is hygiene,
+  not authorship attribution.
+- [Repetition and Reinvention](root-causes/repetition-and-reinvention.md) — why
+  models restate the same concept, and the deterministic proxies for linting it.
 - [Formulaic Register](root-causes/formulaic-register.md) — praise adjectives,
   hedging, and verbosity padding as a learned house style.
 - [Homogenization and Inversion](root-causes/homogenization-and-inversion.md) —

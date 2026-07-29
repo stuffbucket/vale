@@ -39,11 +39,31 @@ research builds on. Papers are ordered by relevance to a linter.
 
 ## Detection methods and controlled language (background)
 
+- **[2503.01659]** — *Detecting Stylistic Fingerprints of Large Language Models.*
+  Attributes text to Claude / OpenAI / Gemini / Llama at 0.9988 precision via a
+  classifier ensemble — the grounding for per-family detection.
+  https://arxiv.org/abs/2503.01659
 - **[2301.11305]** — *DetectGPT.* https://arxiv.org/abs/2301.11305
 - **[2302.00937]** — *The Fewer Splits are Better* (sentence-split readability).
   https://arxiv.org/abs/2302.00937
 - **[1605.02457]** — *The Controlled Natural Language of Randall Munroe's Thing
   Explainer.* https://arxiv.org/abs/1605.02457
+
+## Repetition and degeneration
+
+- **[1904.09751]** Holtzman et al. — *The Curious Case of Neural Text
+  Degeneration.* Likelihood decoding is "bland and strangely repetitive"; nucleus
+  sampling. https://arxiv.org/abs/1904.09751
+- **[2206.02369]** — *Learning to Break the Loop: Analyzing and Mitigating
+  Repetitions.* The self-reinforcement effect (repetition feeds on itself); DITTO.
+  https://arxiv.org/abs/2206.02369
+- **[2012.14660]** — *A Theoretical Analysis of the Repetition Problem in Text
+  Generation.* Average Repetition Probability, the high-inflow problem.
+  https://arxiv.org/abs/2012.14660
+- **[2410.13497]** — *Repetition Neurons: How Do Language Models Produce
+  Repetitions?* https://arxiv.org/abs/2410.13497
+- Standard repetition/diversity metrics referenced but not tied to one paper:
+  **rep-n**, **distinct-n**, **self-BLEU**.
 
 ## External resources
 
@@ -60,3 +80,18 @@ research builds on. Papers are ordered by relevance to a linter.
 - **[ASD-STE100](https://www.asd-ste100.org/)** — the Simplified Technical English
   standard. Its Technical Names / Technical Verbs mechanism is why a domain
   allowlist is STE-compliant, not a workaround.
+
+## Community-curated word lists (descriptive, not peer-reviewed)
+
+Useful for building the model-family watchlists; mark as lower-confidence.
+
+- **[berenslab/llm-excess-vocab](https://github.com/berenslab/llm-excess-vocab)**
+  (MIT) — the ~900 excess words from paper 2406.07016 as a CSV. The authoritative
+  OpenAI/ChatGPT-family source.
+- **[Wikipedia: Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing)**
+  — era-segmented AI vocabulary, significance/legacy phrases, copula avoidance,
+  negative parallelism, rule-of-three, em-dash observations.
+- Claude-family tells:
+  [blogpros](https://blogpros.com/claude-written-content-biggest-tells/),
+  [Bloomberry](https://www.bloomberry.ai/research/ai-writing-patterns/claude),
+  [context-link (em-dash)](https://www.context-link.ai/blog/claude-em-dash-remover).

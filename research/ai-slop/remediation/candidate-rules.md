@@ -21,7 +21,10 @@ also vague, non-plain diction STE discourages anyway: `delve`/`delves`/`delving`
 flagging is defensible (human baseline ~2-3%). Frame as a style nudge, never as
 proof of AI authorship. Evidence: 2406.07016, 2502.09606, 2404.01268, 2403.16887,
 2403.07183, 2505.12218. FP risk: **low-moderate** (legitimate `intricate
-mechanism`, `pivotal joint`; markers decay — keep the list versioned).
+mechanism`, `pivotal joint`; markers decay — keep the list versioned). Organize
+the watchlist **by model family** (OpenAI/ChatGPT excess-vocab, Claude tells) so
+it flags either at a minimum — see
+[root-causes/model-signatures.md](../root-causes/model-signatures.md).
 
 ### `STE.ImpersonalItModalHedge` (existence)
 Regex for the impersonal-it + modal + reporting-verb padding pattern:
@@ -79,3 +82,41 @@ but are normal technical vocabulary (`comprehensive`, `crucial`, `significant`,
 `enhance`, `capabilities`, `potential`, `findings`). Corpus-level advisory only.
 Evidence: 2406.07016, 2502.09606, 2404.01268. FP risk: **very high** — the
 baseline (~2-3%) is the false-positive floor; never a per-line flag.
+
+## Structural tells (deterministic)
+
+### `STE.NegativeParallelism` (existence)
+The `Not only X but also Y` / `Not X, but Y` / `It's not just X — it's Y`
+construction — a strong cross-family structural tell
+([root-causes/model-signatures.md](../root-causes/model-signatures.md)) that is
+also wordy by STE standards. Deterministic regex, clean rewrite to a direct
+statement. Evidence: Wikipedia *Signs of AI writing* (community-curated). FP risk:
+**low-moderate** (the construction is occasionally legitimate for contrast).
+
+## Repetition and reinvention
+
+Full analysis in
+[root-causes/repetition-and-reinvention.md](../root-causes/repetition-and-reinvention.md).
+These target the "same concept over and over" pattern.
+
+### `STE.RestatementMarkers` (existence)
+Discourse markers that announce a restatement: `in other words`, `to put it
+another way`, `simply put`, `essentially`, `to reiterate`, `as mentioned`,
+`as noted above`, `in essence`. A cluster signals a reinvented point; each has a
+clean rewrite. Evidence: 2206.02369 (self-reinforcement). FP risk: **low** —
+specific phrases, uncommon in tight instructions.
+
+### `STE.PhraseRepetition` (occurrence)
+A **rep-n** metric (repeated 3-4-grams over a document or rolling window),
+exempting allowlisted technical terms. Grounded in the standard repetition metrics
+(rep-n, distinct-n) and the degeneration literature (1904.09751, 2012.14660). FP
+risk: **moderate** — controlled language repeats approved terms by design, so
+target repeated phrases, not repeated nouns.
+
+### `STE.RedundantRestatement` (metric, advisory)
+Sentence-level near-duplication via shingling + Jaccard similarity on lemmatized
+content words; flag pairs above a high threshold. Catches re-summarized paragraphs
+and duplicated section intros — the lexical proxy for "reinvention" without
+embeddings. Evidence: 2206.02369, 2410.13497. FP risk: **high** — parallel spec
+requirements score high; advisory only, human review, never autofix. Semantic
+(zero-overlap) reinvention is out of scope for a dependency-light linter.

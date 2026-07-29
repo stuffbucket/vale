@@ -57,3 +57,28 @@ Concrete numbers from the sweep. Full citations in
 - **[1605.02457] Thing Explainer CNL** — Restricts text to the ~1,000 most common
   words with 13 morphology rules. A vocabulary-commonness metric whose lexical
   signal points **opposite** to precise technical writing.
+
+## Model-family attribution
+
+- **[2503.01659]** — Attributes text to **Claude, OpenAI, Gemini, Llama** at
+  **0.9988** precision, **0.0004** false-positive rate, via a three-classifier
+  ensemble that commits only when unanimous. Models keep "distinct and consistent
+  stylistic fingerprints, even when prompted to write in different writing
+  styles." Confirms per-family detection is real — but via learned classifiers,
+  not a surface wordlist, so a linter's word-match is a weaker proxy.
+
+## Repetition and reinvention
+
+- **[1904.09751]** — Likelihood-maximizing decoding yields "bland and strangely
+  repetitive" text; the diagnosis behind nucleus sampling.
+- **[2206.02369]** — The **self-reinforcement effect**: after a sentence repeats,
+  the probability of repeating it again rises — repetition compounds. This is the
+  mechanism behind "the same concept over and over."
+- **[2012.14660]** — Formalizes it as the high-inflow problem with an Average
+  Repetition Probability metric.
+- **[2410.13497]** — Identifies specific "repetition neurons" that drive the
+  behavior.
+- Practical linter metrics from this literature: **rep-n** (repeated-n-gram
+  fraction), **distinct-n** (unique-n-gram ratio), **self-BLEU** (corpus-level
+  self-similarity), and sentence-level **shingling + Jaccard** for near-duplicate
+  detection.
