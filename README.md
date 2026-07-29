@@ -219,6 +219,35 @@ rules:
     disabled: false
 ```
 
+## Suppressing rules inline
+
+Silence a rule on a line or region with HTML-comment directives. The notation
+reuses Vale's own `off`/`on`/`= NO` region syntax and markdownlint's
+`disable-line` / `disable-next-line` verbs — nothing new to learn.
+
+```markdown
+This line is checked.
+
+<!-- vale disable-next-line STE.PassiveVoice -->
+This line's passive voice is ignored.
+
+Trailing form works too. <!-- vale disable-line STE.Vocabulary -->
+
+<!-- vale off -->
+Everything here is ignored, for every rule,
+until the matching on directive.
+<!-- vale on -->
+
+<!-- vale STE.Contractions = NO -->
+Only STE.Contractions is off in this region.
+<!-- vale STE.Contractions = YES -->
+```
+
+With no rule ids, a `disable-line` / `disable-next-line` directive suppresses
+every rule; with one or more space-separated ids, only those. Directives are
+HTML comments, so they never produce findings themselves. See
+[ADR 0007](docs/decisions/0007-inline-suppression-directives.md).
+
 ## How Markdown is parsed
 
 vale parses Markdown to a real AST ([goldmark](https://github.com/yuin/goldmark),

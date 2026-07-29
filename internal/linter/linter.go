@@ -53,10 +53,11 @@ func (l *Linter) Config() *config.Config { return l.cfg }
 func (l *Linter) Rules() []lint.Rule { return l.engine.Rules() }
 
 // LintText checks a block of text and returns the findings. The path is only
-// for reports and for the Markdown decision.
+// for reports and for the Markdown decision. Findings silenced by inline
+// `<!-- vale ... -->` directives are dropped (see docs/decisions/0007).
 func (l *Linter) LintText(path, text string, mode MarkdownMode) []lint.Finding {
 	doc := lint.Parse(path, text, lint.ParseOptions{Markdown: markdownFor(path, mode)})
-	return l.engine.Run(doc)
+	return lint.FilterSuppressed(l.engine.Run(doc), text)
 }
 
 // LintFile reads a file and checks it.
