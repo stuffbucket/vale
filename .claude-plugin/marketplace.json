@@ -12,7 +12,7 @@
       "name": "vale",
       "source": "./",
       "description": "Simplified Technical English linter and MCP server: lint_text, list_rules, and LLM-assisted fix_text, plus the ste-lint skill.",
-      "version": "0.11.0",
+      "version": "0.14.0",
       "author": {
         "name": "stuffbucket"
       }

@@ -1,0 +1,35 @@
+# Starter vale configuration. Copy to .vale-ste.yml at the repository root.
+# All fields have defaults, so keep only what you change. See references/config.md.
+
+# Exit-code gate: error, warning, or suggestion.
+minSeverity: error
+
+# Sentence-length limits (words).
+sentence:
+  procedureMax: 20
+  descriptionMax: 25
+
+# Approve project terms so STE.Vocabulary stops flagging them.
+vocabulary:
+  allow: []
+  deny: []
+
+# Scope which paths a directory walk considers (a .valeignore adds excludes too).
+files:
+  include: []
+  exclude: ["vendor/*", "**/CHANGELOG.md"]
+
+# Turn on the opt-in slop family (or pass --slop on the command line).
+slop:
+  enabled: false
+
+# The LLM endpoint for `vale --fix` and `vale eval`.
+model:
+  endpoint: "http://localhost:4141"
+  name: "claude-sonnet-5"
+  # temperature: 0.2
+
+# Change a rule's severity or disable it.
+rules:
+  STE.PassiveVoice:
+    severity: warning

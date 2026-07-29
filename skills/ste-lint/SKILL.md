@@ -1,122 +1,57 @@
 ---
 name: ste-lint
 description: >-
-  Lint or rewrite text into Simplified Technical English (ASD-STE100) and review
-  documentation for STE compliance. Use this skill when the user asks to check,
-  simplify, or rewrite prose so that it follows Simplified Technical English —
-  short sentences, no contractions, active voice, and approved vocabulary — or
-  to review docs, READMEs, procedures, or instructions for STE issues. Wraps the
-  `vale` linter and its MCP server.
+  Check, simplify, or rewrite text into Simplified Technical English (ASD-STE100)
+  with the vale linter. Use when the user asks to lint, review, tighten, or
+  rewrite prose, docs, READMEs, procedures, or agent instructions for STE — short
+  sentences, active voice, no contractions, plain vocabulary — or to catch "AI
+  slop," fix a document with a model, or run STE checks over a repository. Wraps
+  the vale CLI, its MCP server, and its model-eval mode.
+allowed-tools: Bash(vale *), Bash(${CLAUDE_SKILL_DIR}/scripts/*)
 ---
 
-# STE lint
+# vale — Simplified Technical English
 
-This skill uses the `vale` binary to check and improve text against Simplified
-Technical English (STE) rules. Vale is an approximation of ASD-STE100 (not
-certified), so treat its output as guidance, not a certificate.
+`vale` checks and improves text against Simplified Technical English (STE) rules.
+It is an approximation of ASD-STE100 (not certified) — treat its output as
+guidance, not a certificate.
 
 ## When to use
 
-- The user asks to lint, check, or review text or docs for STE compliance.
-- The user asks to rewrite prose into Simplified Technical English, or to make
-  instructions shorter, clearer, and more direct.
-- You are writing procedures, READMEs, or agent instructions and want them to
-  pass an STE gate.
+- Lint or review text, docs, READMEs, or procedures for STE.
+- Rewrite prose into STE, or make instructions shorter and more direct.
+- Catch "AI slop" (LLM-ish diction, hedging, restatement) — add `--slop`.
+- Fix a document automatically with a model — `vale --fix`.
 
-## How to run the linter
+## Core commands
 
-Prefer the JSON format; it is stable and easy to parse.
-
-```sh
-vale lint <path> --format json
-```
-
-If `vale` is not on `PATH`, use the bundled wrapper, which falls back to
-`go run`:
+Linting is the default action. The default output groups findings by rule and is
+compact; add `--format json` when you need to parse it.
 
 ```sh
-scripts/lint.sh <path>
+vale README.md                 # concise findings
+vale docs/ --format json       # machine-readable
+vale --slop notes.md           # include the opt-in slop rules
 ```
 
-You can also lint several files or a directory:
+If `vale` is not on `PATH`, use `${CLAUDE_SKILL_DIR}/scripts/lint.sh <path>` (it
+falls back to `go run`). Install it with `brew install stuffbucket/tap/vale`.
 
-```sh
-vale lint docs/ README.md --format json
-```
+Exit codes: `0` clean at the gate, `1` findings at or above the gate, `2` a tool
+error. Pass `--audit` to always exit `0` (collect findings without failing).
 
-Useful flags:
+## Rewrite, do not only report
 
-- `--min-severity error|warning|suggestion` — the exit-code gate. Exit `0` means
-  clean at the gate, `1` means findings at or above the gate, `2` means a usage
-  or runtime error.
-- `--markdown auto|on|off` — force Markdown-aware tokenizing. `auto` decides from
-  the file ending.
-- `--strict-vocabulary` — also flag unapproved words that have no direct
-  replacement. Off by default to avoid a flood of low-value findings.
+When asked to rewrite, fix the findings in place and keep the meaning exact:
+expand contractions, shorten sentences (20 words or fewer in steps), use the
+active voice, put one instruction in one sentence, drop `-ing` forms and phrasal
+verbs, and use the approved word from each finding's `hint`. Re-run until clean.
+For an automatic rewrite, use `vale --fix <file>` — it prints the corrected
+document to stdout, or to `--output <file>`.
 
-### Interpreting findings
+## Going deeper (load only when you need it)
 
-Each JSON finding has:
-
-- `ruleId` — one of `STE.SentenceLength`, `STE.Contractions`, `STE.PassiveVoice`,
-  `STE.IngForms`, `STE.PhrasalVerbs`, `STE.OneInstruction`, `STE.Vocabulary`.
-- `severity` — `error`, `warning`, or `suggestion`.
-- `message` — what is wrong.
-- `hint` — how to fix it (often the approved replacement word).
-- `line`, `col`, `endLine`, `endCol`, `match` — the exact span.
-
-Fix errors first, then warnings, then suggestions. Re-run the linter after each
-pass until it is clean at the gate you care about.
-
-## How to use the MCP server
-
-For interactive or repeated linting without touching the filesystem, connect the
-MCP server:
-
-```sh
-vale mcp
-```
-
-It speaks JSON-RPC 2.0 over stdio, one message per line, protocol version
-`2024-11-05`. Register it in an MCP client:
-
-```json
-{
-  "mcpServers": {
-    "vale": {
-      "command": "vale",
-      "args": ["mcp"]
-    }
-  }
-}
-```
-
-Call the `lint_text` tool with a `text` argument (required). Optional arguments:
-`filename` (a `.md` name turns on Markdown mode), `markdown` (boolean, overrides
-the file name), and `minSeverity`. Call `list_rules` to see every rule with its
-default severity. The `lint_text` result is a text block: a one-line summary,
-then a JSON block with the `findings` array and a `summary` count by severity.
-
-## Rewrite workflow
-
-When you rewrite flagged text into Simplified Technical English:
-
-1. **Expand contractions** (`STE.Contractions`). Write `do not` for `don't`,
-   `it is` for `it's`, and `cannot` for `can't`.
-2. **Shorten sentences** (`STE.SentenceLength`). Keep list items and procedure
-   steps to 20 words or fewer, and description sentences to 25 words or fewer.
-   Split one long sentence into two short ones.
-3. **Use the active voice** (`STE.PassiveVoice`). State who does the action:
-   turn "the valve was closed" into "close the valve" or "the operator closed
-   the valve".
-4. **Write one instruction per sentence** (`STE.OneInstruction`). Give each step
-   a single action, in the imperative for procedures.
-5. **Avoid `-ing` verb forms in instructions** (`STE.IngForms`). Use the plain
-   imperative.
-6. **Replace phrasal verbs** (`STE.PhrasalVerbs`) with one clear verb.
-7. **Use approved vocabulary** (`STE.Vocabulary`). Replace each flagged word with
-   the approved word from the finding's `hint`.
-
-After rewriting, run `vale lint <path> --format json` again and confirm the
-findings are gone. Do not change the meaning of the text; keep the technical
-content exact.
+- Rules, severities, and the rewrite checklist — [references/rules.md](references/rules.md)
+- Config layers, vocabulary allow/deny, slop, inline suppression — [references/config.md](references/config.md)
+- MCP server (session vocabulary) and model eval — [references/mcp-and-eval.md](references/mcp-and-eval.md)
+- Starter config to copy — [templates/vale-ste.yml](templates/vale-ste.yml)
