@@ -73,27 +73,36 @@ directory, vale walks it and checks files with a known text ending (`.md`,
 | --- | --- | --- | --- |
 | `--config` | path | discovered | Path to a config file. When empty, vale searches upward from the working directory. |
 | `--min-severity` | `error`, `warning`, `suggestion` | `error` | The exit-code gate. Vale fails when it finds a problem at this level or higher. |
-| `--format` | `text`, `json` | `text` | Output format. |
+| `--format` | `concise`, `text`, `json` | `concise` | Output format. `concise` groups by rule (token-efficient, for tools/LLMs); `text` is one verbose line per finding; `json` is machine-readable. |
+| `--audit` | bool | `false` | Audit only: print findings but always exit 0 (never fail the caller). |
 | `--markdown` | `auto`, `on`, `off` | `auto` | Markdown mode. `auto` decides from the file ending. |
 | `--strict-vocabulary` | bool | `false` | Also report unapproved words that have no direct replacement. |
 | `--color` | `auto`, `always`, `never` | `auto` | Color the severity word. `auto` colors only when stdout is a terminal and `NO_COLOR` is unset. |
 
 ### Example output
 
-Each finding is one line in the form `path:line:col: severity: message [RuleID]`
-with the fix hint appended. The path and position are on the line, so an editor,
-a terminal, or a CI problem matcher can jump straight to it.
+The default `concise` format groups findings by rule, prints the rule ID and a
+shared hint once, then one compact `path:line:col match` line per finding. It
+drops the repeated per-line rule ID and message that agents and LLMs would
+otherwise pay for in tokens, while keeping every location actionable.
 
 ```
 $ vale notes.txt
-notes.txt:1:48: warning: Passive voice: "was written". [STE.PassiveVoice] hint: Rewrite the sentence in the active voice. State who does the action.
-notes.txt:1:74: suggestion: The -ing form "using" is hard to read in an instruction. [STE.IngForms] hint: Use a simple verb form, such as the imperative.
+STE.PassiveVoice · warning · 1
+  ↳ Rewrite the sentence in the active voice. State who does the action.
+  notes.txt:1:48  was written
+
+STE.IngForms · suggestion · 1
+  ↳ Use a simple verb form, such as the imperative.
+  notes.txt:1:74  using
 ```
 
-Findings go to stdout, one per line; the summary count goes to stderr. So a pipe
-over stdout (`vale docs/ | …`) gets nothing but `path:line:col` findings. Output
-adapts to the caller: at an interactive terminal the severity word is colored;
-piped, redirected, or under CI it is plain text, so nothing is harder to parse.
+Use `--format text` for one self-contained clickable line per finding
+(`path:line:col: severity: message [RuleID] hint: …`), which suits editors and
+CI problem matchers. Findings go to stdout; the summary count goes to stderr, so
+a pipe over stdout gets nothing but findings. Output adapts to the caller: at an
+interactive terminal the severity word is colored; piped, redirected, or under
+CI it is plain text.
 
 JSON output (`--format json`) writes a `results` array; each result has a `path`
 and a `findings` array. Each finding has `ruleId`, `severity`, `message`, `hint`,
@@ -102,11 +111,18 @@ and machine-readable, which suits editor plugins and agents.
 
 ### Exit codes
 
+The codes follow the convention agentic harnesses expect: `0` success, `1`
+lint findings, `2` the tool itself failed.
+
 | Code | Meaning |
 | --- | --- |
-| `0` | Clean at the gate (no finding at or above `--min-severity`). |
+| `0` | Clean at the gate (no finding at or above `--min-severity`), or `--audit`. |
 | `1` | One or more findings at or above the gate severity. |
 | `2` | Usage error or a runtime error (bad flag, missing path, unreadable file, bad config). |
+
+Pass `--audit` to always exit `0` — the findings still print, but the run never
+fails the caller. This suits an agent that wants to collect findings without a
+non-zero exit tripping its command-failure handling.
 
 The gate defaults to `error`, so a suggestion or warning alone still exits `0`.
 Raise the gate in CI (for example `--min-severity warning`) to make warnings

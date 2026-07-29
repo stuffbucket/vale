@@ -159,3 +159,41 @@ func TestJSONFieldNames(t *testing.T) {
 		}
 	}
 }
+
+func TestConciseGroupsAndDedupes(t *testing.T) {
+	var buf bytes.Buffer
+	Concise(&buf, sampleResults(), false)
+	out := buf.String()
+	// Rule id appears once as a group header, not per finding.
+	if strings.Count(out, "STE.Contractions") != 1 {
+		t.Errorf("rule id should appear once as a header:\n%s", out)
+	}
+	// Locations are present and compact (path:line:col match).
+	if !strings.Contains(out, "a.md:1:1  ") || !strings.Contains(out, "b.md:5:2  ") {
+		t.Errorf("concise locations missing:\n%s", out)
+	}
+	// Error group precedes suggestion group (severity order).
+	if strings.Index(out, "STE.Contractions") > strings.Index(out, "STE.IngForms") {
+		t.Errorf("groups not ordered by severity:\n%s", out)
+	}
+	// No ANSI in plain mode.
+	if strings.Contains(out, "\x1b[") {
+		t.Errorf("plain concise must not emit ANSI:\n%s", out)
+	}
+}
+
+func TestConciseSharedHintPrintedOnce(t *testing.T) {
+	results := []FileResult{{Path: "a.md", Findings: []lint.Finding{
+		{RuleID: "STE.PassiveVoice", Severity: lint.SeverityWarning, Message: "p1", Hint: "Use active voice.", Line: 1, Col: 1, Match: "was done"},
+		{RuleID: "STE.PassiveVoice", Severity: lint.SeverityWarning, Message: "p2", Hint: "Use active voice.", Line: 2, Col: 1, Match: "is tested"},
+	}}}
+	var buf bytes.Buffer
+	Concise(&buf, results, false)
+	out := buf.String()
+	if strings.Count(out, "Use active voice.") != 1 {
+		t.Errorf("shared hint should print once:\n%s", out)
+	}
+	if !strings.Contains(out, "was done") || !strings.Contains(out, "is tested") {
+		t.Errorf("matches missing:\n%s", out)
+	}
+}

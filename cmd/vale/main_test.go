@@ -71,9 +71,23 @@ func TestRunDefaultsToLint(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("run(%q) = %d, want 1 (default lint, gate on error)", f, code)
 	}
-	// The finding is an actionable path:line:col line on stdout.
-	if !strings.Contains(out, f+":1:") || !strings.Contains(out, "[STE.Contractions]") {
+	// The finding appears in the concise report with an actionable location.
+	if !strings.Contains(out, f+":1:") || !strings.Contains(out, "STE.Contractions") {
 		t.Errorf("default-lint output not actionable: %q", out)
+	}
+}
+
+func TestCmdLintAuditAlwaysExitsZero(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "a.txt")
+	mustWrite(t, f, "Don't stop.") // a contraction normally exits 1
+	var code int
+	out := captureStdout(t, func() { code = cmdLint([]string{"-audit", f}) })
+	if code != 0 {
+		t.Errorf("audit exit = %d, want 0", code)
+	}
+	if !strings.Contains(out, "STE.Contractions") {
+		t.Errorf("audit should still report findings: %q", out)
 	}
 }
 

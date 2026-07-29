@@ -26,10 +26,11 @@ func cmdLint(args []string) int {
 	fs := flag.NewFlagSet("lint", flag.ContinueOnError)
 	configPath := fs.String("config", "", "path to a config file")
 	minSeverity := fs.String("min-severity", "", "gate: fail on this severity or higher")
-	format := fs.String("format", "text", "output format: text or json")
+	format := fs.String("format", "concise", "output format: concise, text, or json")
 	markdownFlag := fs.String("markdown", "auto", "markdown mode: auto, on, or off")
 	strict := fs.Bool("strict-vocabulary", false, "also report unapproved words with no replacement")
 	colorFlag := fs.String("color", "auto", "color: auto, always, or never")
+	audit := fs.Bool("audit", false, "audit only: print findings but always exit 0")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -56,7 +57,7 @@ func cmdLint(args []string) int {
 		fmt.Fprintf(os.Stderr, "lint: %v\n", err)
 		return 2
 	}
-	if *format != "text" && *format != "json" {
+	if *format != "text" && *format != "json" && *format != "concise" {
 		fmt.Fprintf(os.Stderr, "lint: unknown format %q\n", *format)
 		return 2
 	}
@@ -83,19 +84,28 @@ func cmdLint(args []string) int {
 		results = append(results, report.FileResult{Path: path, Findings: findings})
 	}
 
-	if *format == "json" {
+	color := shouldColor(*colorFlag, os.Stdout)
+	switch *format {
+	case "json":
 		if err := report.JSON(os.Stdout, results); err != nil {
 			fmt.Fprintf(os.Stderr, "lint: %v\n", err)
 			return 2
 		}
-	} else {
-		// Findings go to stdout (one clickable line each); the summary goes to
-		// stderr so a pipe over stdout gets nothing but path:line:col findings.
-		report.Text(os.Stdout, results, shouldColor(*colorFlag, os.Stdout))
+	case "text":
+		// Verbose: one self-contained clickable line per finding.
+		report.Text(os.Stdout, results, color)
+		fmt.Fprintln(os.Stderr, report.SummaryLine(results))
+	default: // concise
+		// Compact, grouped by rule — the token-efficient default for tools/LLMs.
+		report.Concise(os.Stdout, results, color)
 		fmt.Fprintln(os.Stderr, report.SummaryLine(results))
 	}
 
-	if gateFailed(results, cfg.Gate()) {
+	// Exit-code contract for agentic harnesses:
+	//   0  no findings at or above the gate (or --audit)
+	//   1  findings at or above the gate (lint failures found)
+	//   2  usage or runtime error (returned earlier)
+	if !*audit && gateFailed(results, cfg.Gate()) {
 		return 1
 	}
 	return 0

@@ -6,6 +6,7 @@ import (
 
 	"github.com/stuffbucket/vale/internal/lint"
 	"github.com/stuffbucket/vale/internal/linter"
+	"github.com/stuffbucket/vale/internal/report"
 )
 
 // tool describes one MCP tool for the tools/list response.
@@ -119,10 +120,14 @@ func (s *Server) callLintText(raw json.RawMessage) (any, *rpcError) {
 		}
 		findings = filterSeverity(findings, min)
 	}
-	return toolResultJSON(map[string]any{
-		"findings": findings,
-		"summary":  summarize(findings),
-	}, summaryLine(findings))
+	// Return the compact concise report (grouped by rule, deduped hints) rather
+	// than a full JSON dump, so the tool stays light on the caller's context.
+	body := report.ConciseString([]report.FileResult{{Path: filename, Findings: findings}})
+	text := summaryLine(findings)
+	if body != "" {
+		text += "\n\n" + body
+	}
+	return toolResultText(text), nil
 }
 
 // callListRules runs the list_rules tool.
@@ -183,6 +188,16 @@ func toolResultJSON(payload any, summary string) (any, *rpcError) {
 		},
 		"isError": false,
 	}, nil
+}
+
+// toolResultText builds a tool result from plain text.
+func toolResultText(text string) any {
+	return map[string]any{
+		"content": []map[string]any{
+			{"type": "text", "text": text},
+		},
+		"isError": false,
+	}
 }
 
 // toolError builds a tool result that reports a user error.
