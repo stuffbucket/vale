@@ -340,8 +340,26 @@ message on each line (newline-delimited), and it reports MCP protocol version
 
 ### Client configuration
 
-Add vale to an MCP client (for example Claude Code) as a server that runs the
-binary with the `mcp` subcommand:
+The repository ships a ready-to-use MCP definition and a Claude Code plugin.
+
+**As a Claude Code plugin** (recommended). The repo is a plugin marketplace, so
+it installs the MCP server and the `ste-lint` skill together:
+
+```shell
+/plugin marketplace add stuffbucket/vale
+/plugin install vale@stuffbucket
+/reload-plugins
+```
+
+Install the `vale` binary first (the plugin launches it): `brew install
+stuffbucket/tap/vale`. The plugin's server definition lives in
+[`.mcp.json`](.mcp.json); its manifest is
+[`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and the marketplace is
+[`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json).
+
+**Directly, without the plugin.** Add vale to any MCP client (Claude Code,
+Claude Desktop) as a server that runs the binary with the `mcp` subcommand — the
+same JSON the repo's `.mcp.json` contains:
 
 ```json
 {
