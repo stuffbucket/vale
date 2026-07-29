@@ -83,7 +83,10 @@ func cmdLint(args []string) int {
 			return 2
 		}
 	} else {
+		// Findings go to stdout (one clickable line each); the summary goes to
+		// stderr so a pipe over stdout gets nothing but path:line:col findings.
 		report.Text(os.Stdout, results)
+		fmt.Fprintln(os.Stderr, report.SummaryLine(results))
 	}
 
 	if gateFailed(results, cfg.Gate()) {

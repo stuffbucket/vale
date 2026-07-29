@@ -13,13 +13,14 @@ import (
 const usage = `vale - a Simplified Technical English linter and MCP server
 
 Usage:
-  vale lint [flags] <path>...   Check files or directories.
+  vale [flags] <path>...        Check files or directories (the default action).
+  vale lint [flags] <path>...   The same, stated explicitly.
   vale mcp                      Start the stdio MCP server.
   vale gen [flags]              Build the vocabulary rules from the wordset.
   vale rules                    List the rules.
   vale version                  Print the version.
 
-Run "vale <command> -h" for the flags of a command.
+Run "vale lint -h" for the lint flags.
 `
 
 func main() {
@@ -49,7 +50,8 @@ func run(args []string) int {
 		fmt.Print(usage)
 		return 0
 	default:
-		fmt.Fprintf(os.Stderr, "unknown command %q\n\n%s", cmd, usage)
-		return 2
+		// No known subcommand: treat every argument as lint input (paths and
+		// lint flags). This makes "vale <path>..." the default action.
+		return cmdLint(args)
 	}
 }

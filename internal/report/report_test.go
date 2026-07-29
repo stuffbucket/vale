@@ -55,18 +55,28 @@ func TestText(t *testing.T) {
 	Text(&buf, sampleResults())
 	out := buf.String()
 
+	// Each finding is one actionable "path:line:col: severity: message [rule]" line.
 	for _, want := range []string{
-		"a.md",
-		"b.md",
-		"1:1",
-		"[STE.Contractions]",
-		"Contraction.",
-		"hint: Fix it.",
-		"3 problems (1 errors, 1 warnings, 1 suggestions)",
+		"a.md:1:1: error: Contraction. [STE.Contractions] hint: Fix it.",
+		"a.md:2:3: warning: Passive. [STE.PassiveVoice]",
+		"b.md:5:2: suggestion: Ing. [STE.IngForms]",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q\n---\n%s", want, out)
 		}
+	}
+	// The summary is not part of Text; the caller writes it separately.
+	if strings.Contains(out, "problems (") {
+		t.Errorf("Text must not print the summary: %q", out)
+	}
+}
+
+func TestSummaryLine(t *testing.T) {
+	if got := SummaryLine(sampleResults()); got != "3 problems (1 errors, 1 warnings, 1 suggestions)" {
+		t.Errorf("SummaryLine = %q", got)
+	}
+	if got := SummaryLine(nil); got != "0 problems (0 errors, 0 warnings, 0 suggestions)" {
+		t.Errorf("empty SummaryLine = %q", got)
 	}
 }
 
@@ -76,12 +86,8 @@ func TestTextSkipsFilesWithNoFindings(t *testing.T) {
 		{Path: "clean.md", Findings: nil},
 	}
 	Text(&buf, results)
-	out := buf.String()
-	if strings.Contains(out, "clean.md") {
-		t.Errorf("clean file should be skipped: %q", out)
-	}
-	if !strings.Contains(out, "0 problems (0 errors, 0 warnings, 0 suggestions)") {
-		t.Errorf("missing summary line: %q", out)
+	if out := buf.String(); out != "" {
+		t.Errorf("clean file must produce no output: %q", out)
 	}
 }
 

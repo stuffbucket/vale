@@ -54,14 +54,16 @@ go build ./cmd/vale
 ## CLI usage
 
 ```
-vale lint [flags] <path>...   Check files or directories.
+vale [flags] <path>...        Check files or directories (the default action).
+vale lint [flags] <path>...   The same, stated explicitly.
 vale mcp                      Start the stdio MCP server.
 vale gen [flags]              Build the vocabulary rules from the wordset.
 vale rules                    List the rules.
 vale version                  Print the version.
 ```
 
-`vale lint` accepts one or more file or directory paths. When you pass a
+Linting is the default action, so `vale README.md` and `vale lint README.md` are
+the same. vale accepts one or more file or directory paths. When you pass a
 directory, vale walks it and checks files with a known text ending (`.md`,
 `.markdown`, `.mdown`, `.mkd`, `.txt`), while it skips `.git` and `node_modules`.
 
@@ -77,16 +79,18 @@ directory, vale walks it and checks files with a known text ending (`.md`,
 
 ### Example output
 
-```
-$ vale lint notes.txt
-notes.txt
-  1:48  warning     Passive voice: "was written".  [STE.PassiveVoice]
-                    hint: Rewrite the sentence in the active voice. State who does the action.
-  1:74  suggestion  The -ing form "using" is hard to read in an instruction.  [STE.IngForms]
-                    hint: Use a simple verb form, such as the imperative.
+Each finding is one line in the form `path:line:col: severity: message [RuleID]`
+with the fix hint appended. The path and position are on the line, so an editor,
+a terminal, or a CI problem matcher can jump straight to it.
 
-2 problems (0 errors, 1 warnings, 1 suggestions)
 ```
+$ vale notes.txt
+notes.txt:1:48: warning: Passive voice: "was written". [STE.PassiveVoice] hint: Rewrite the sentence in the active voice. State who does the action.
+notes.txt:1:74: suggestion: The -ing form "using" is hard to read in an instruction. [STE.IngForms] hint: Use a simple verb form, such as the imperative.
+```
+
+Findings go to stdout, one per line; the summary count goes to stderr. So a pipe
+over stdout (`vale docs/ | …`) gets nothing but `path:line:col` findings.
 
 JSON output (`--format json`) writes a `results` array; each result has a `path`
 and a `findings` array. Each finding has `ruleId`, `severity`, `message`, `hint`,

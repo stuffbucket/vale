@@ -45,21 +45,30 @@ func Summarize(results []FileResult) Summary {
 }
 
 // Text writes the results in a form for the terminal.
+// Text writes one actionable line per finding, in the form
+//
+//	path:line:col: severity: message [RuleID] hint: <fix>
+//
+// Every line carries the file path and position so an editor, a terminal, or a
+// CI problem matcher can jump straight to the location. The hint is appended
+// when the finding has one. Text writes findings only; call SummaryLine for the
+// count so the caller can keep it off stdout.
 func Text(w io.Writer, results []FileResult) {
 	for _, r := range results {
-		if len(r.Findings) == 0 {
-			continue
-		}
-		fmt.Fprintf(w, "%s\n", r.Path)
 		for _, f := range r.Findings {
-			fmt.Fprintf(w, "  %d:%d  %-10s  %s  [%s]\n", f.Line, f.Col, f.Severity, f.Message, f.RuleID)
+			line := fmt.Sprintf("%s:%d:%d: %s: %s [%s]", r.Path, f.Line, f.Col, f.Severity, f.Message, f.RuleID)
 			if f.Hint != "" {
-				fmt.Fprintf(w, "                    hint: %s\n", f.Hint)
+				line += " hint: " + f.Hint
 			}
+			fmt.Fprintln(w, line)
 		}
 	}
+}
+
+// SummaryLine returns the one-line count of findings by severity.
+func SummaryLine(results []FileResult) string {
 	s := Summarize(results)
-	fmt.Fprintf(w, "\n%d problems (%d errors, %d warnings, %d suggestions)\n",
+	return fmt.Sprintf("%d problems (%d errors, %d warnings, %d suggestions)",
 		s.Total(), s.Errors, s.Warnings, s.Suggestions)
 }
 

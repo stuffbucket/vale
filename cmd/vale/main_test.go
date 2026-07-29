@@ -35,7 +35,7 @@ func TestRunDispatch(t *testing.T) {
 		want int
 	}{
 		{"no args", nil, 2},
-		{"unknown command", []string{"bogus"}, 2},
+		{"nonexistent path routes to lint", []string{"bogus"}, 2},
 		{"version", []string{"version"}, 0},
 		{"version flag", []string{"--version"}, 0},
 		{"short version", []string{"-v"}, 0},
@@ -57,6 +57,34 @@ func TestRunVersionPrints(t *testing.T) {
 	out := captureStdout(t, func() { run([]string{"version"}) })
 	if !strings.Contains(out, "vale ") {
 		t.Errorf("version output = %q", out)
+	}
+}
+
+func TestRunDefaultsToLint(t *testing.T) {
+	dir := t.TempDir()
+	// A file with a contraction: an error-severity finding, so the default
+	// action (lint) reaches the gate and returns exit code 1.
+	f := filepath.Join(dir, "doc.md")
+	mustWrite(t, f, "Do not use words like don't here.\n")
+	var code int
+	out := captureStdout(t, func() { code = run([]string{f}) })
+	if code != 1 {
+		t.Fatalf("run(%q) = %d, want 1 (default lint, gate on error)", f, code)
+	}
+	// The finding is an actionable path:line:col line on stdout.
+	if !strings.Contains(out, f+":1:") || !strings.Contains(out, "[STE.Contractions]") {
+		t.Errorf("default-lint output not actionable: %q", out)
+	}
+}
+
+func TestRunCleanFileDefaultsToLint(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "clean.md")
+	mustWrite(t, f, "Attach the part.\n")
+	var code int
+	captureStdout(t, func() { code = run([]string{f}) })
+	if code != 0 {
+		t.Errorf("clean file via default lint = %d, want 0", code)
 	}
 }
 
@@ -129,8 +157,9 @@ func TestCmdLintCleanFileExitsZero(t *testing.T) {
 	if code != 0 {
 		t.Errorf("clean file exit = %d, want 0\n%s", code, out)
 	}
-	if !strings.Contains(out, "0 problems") {
-		t.Errorf("output = %q", out)
+	// A clean file writes no findings to stdout; the summary goes to stderr.
+	if out != "" {
+		t.Errorf("clean file stdout should be empty, got %q", out)
 	}
 }
 
