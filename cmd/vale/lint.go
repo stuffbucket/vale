@@ -31,10 +31,16 @@ func cmdLint(args []string) int {
 	strict := fs.Bool("strict-vocabulary", false, "also report unapproved words with no replacement")
 	colorFlag := fs.String("color", "auto", "color: auto, always, or never")
 	audit := fs.Bool("audit", false, "audit only: print findings but always exit 0")
-	if err := fs.Parse(args); err != nil {
+	fix := fs.Bool("fix", false, "rewrite the file with a model to resolve findings; prints to stdout")
+	model := fs.String("model", "", "model for --fix (default: the model.name config)")
+	endpoint := fs.String("endpoint", "", "endpoint for --fix (default: the model.endpoint config)")
+	temperature := fs.Float64("temperature", -1, "temperature for --fix; -1 uses the config or server default")
+	output := fs.String("output", "", "write --fix output to this file instead of stdout")
+	fixMaxTokens := fs.Int("max-tokens", 2048, "max tokens for the --fix rewrite")
+	paths, err := parsePositional(fs, args)
+	if err != nil {
 		return 2
 	}
-	paths := fs.Args()
 	if len(paths) == 0 {
 		fmt.Fprintln(os.Stderr, "lint: give at least one path")
 		return 2
@@ -50,6 +56,18 @@ func cmdLint(args []string) int {
 	}
 	if *minSeverity != "" {
 		cfg.MinSeverity = *minSeverity
+	}
+
+	if *fix {
+		return runFix(fixSettings{
+			cfg:         cfg,
+			paths:       paths,
+			model:       *model,
+			endpoint:    *endpoint,
+			temperature: temperatureFlag(*temperature),
+			output:      *output,
+			maxTokens:   *fixMaxTokens,
+		})
 	}
 
 	mode, err := parseMarkdownMode(*markdownFlag)
@@ -124,9 +142,33 @@ func shouldColor(mode string, f *os.File) bool {
 		if os.Getenv("NO_COLOR") != "" {
 			return false
 		}
-		info, err := f.Stat()
-		return err == nil && info.Mode()&os.ModeCharDevice != 0
+		return isTerminal(f)
 	}
+}
+
+// isTerminal reports whether f is a character device (a terminal).
+func isTerminal(f *os.File) bool {
+	info, err := f.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
+}
+
+// parsePositional parses flags that may appear before, after, or between
+// positional arguments. Go's flag package stops at the first non-flag, so this
+// re-parses around each positional to allow "vale file.md --format json".
+func parsePositional(fs *flag.FlagSet, args []string) ([]string, error) {
+	var positional []string
+	for len(args) > 0 {
+		if err := fs.Parse(args); err != nil {
+			return nil, err
+		}
+		rest := fs.Args()
+		if len(rest) == 0 {
+			break
+		}
+		positional = append(positional, rest[0])
+		args = rest[1:]
+	}
+	return positional, nil
 }
 
 // parseMarkdownMode reads the markdown flag value.

@@ -7,6 +7,9 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
+
+	"github.com/charmbracelet/bubbles/progress"
 
 	"github.com/stuffbucket/vale/internal/config"
 	"github.com/stuffbucket/vale/internal/eval"
@@ -22,6 +25,7 @@ func cmdEval(args []string) int {
 	promptsFile := fs.String("prompts", "", "file with one prompt per line; empty uses the built-in set")
 	maxTokens := fs.Int("max-tokens", 400, "max tokens per completion")
 	concurrency := fs.Int("concurrency", 4, "parallel requests")
+	temperature := fs.Float64("temperature", -1, "sampling temperature; -1 uses the config or server default")
 	format := fs.String("format", "text", "output format: text or json")
 	apiKey := fs.String("api-key", os.Getenv("OPENAI_API_KEY"), "bearer token (or the OPENAI_API_KEY env var)")
 	if err := fs.Parse(args); err != nil {
@@ -55,7 +59,9 @@ func cmdEval(args []string) int {
 		Models:      splitCSV(*modelsFlag),
 		Prompts:     prompts,
 		MaxTokens:   *maxTokens,
+		Temperature: temperatureFlag(*temperature),
 		Concurrency: *concurrency,
+		OnProgress:  progressReporter(os.Stderr),
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "eval: %v\n", err)
@@ -71,6 +77,37 @@ func cmdEval(args []string) int {
 		eval.WriteText(os.Stdout, rep)
 	}
 	return 0
+}
+
+// temperatureFlag converts the CLI sentinel (-1) into a nil pointer (use the
+// config/server default) or a real value.
+func temperatureFlag(v float64) *float64 {
+	if v < 0 {
+		return nil
+	}
+	return &v
+}
+
+// progressReporter returns an OnProgress callback that draws a live bar to w
+// when w is a terminal, or nil otherwise. It serializes writes across goroutines.
+func progressReporter(w *os.File) func(done, total int) {
+	if !isTerminal(w) {
+		return nil
+	}
+	bar := progress.New(progress.WithDefaultGradient(), progress.WithWidth(28), progress.WithoutPercentage())
+	var mu sync.Mutex
+	return func(done, total int) {
+		mu.Lock()
+		defer mu.Unlock()
+		pct := 0.0
+		if total > 0 {
+			pct = float64(done) / float64(total)
+		}
+		fmt.Fprintf(w, "\r  eval %s %3d/%d", bar.ViewAs(pct), done, total)
+		if done >= total {
+			fmt.Fprint(w, "\r\033[K") // clear the line; the report follows on stdout
+		}
+	}
 }
 
 // splitCSV splits a comma list, trimming spaces and dropping empties.

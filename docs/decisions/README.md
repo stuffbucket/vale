@@ -13,6 +13,7 @@ Title, Status, Context, Decision, Consequences.
 | [0005](0005-rule-model.md) | Rule model: one rule per file, stable IDs, three severities | Accepted |
 | [0006](0006-ast-markdown-parsing-and-lsp.md) | AST-based Markdown parsing (goldmark), path scoping, and an LSP surface | Accepted (stages 1-2) |
 | [0007](0007-inline-suppression-directives.md) | Inline rule suppression via HTML-comment directives | Accepted |
+| [0008](0008-llm-fix-and-model-config.md) | LLM-assisted fix, shared model config, and progress UI | Accepted |
 
 ## Adding an ADR
 

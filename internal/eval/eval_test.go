@@ -47,7 +47,7 @@ func TestClientModelsAndComplete(t *testing.T) {
 	if models[0].OwnedBy != "OpenAI" {
 		t.Errorf("family = %q", models[0].OwnedBy)
 	}
-	out, err := c.Complete(context.Background(), "sloppy-1", "x", 0)
+	out, err := c.Complete(context.Background(), "sloppy-1", "x", 0, nil)
 	if err != nil || !strings.Contains(out, "delve") {
 		t.Fatalf("complete = %q, err %v", out, err)
 	}

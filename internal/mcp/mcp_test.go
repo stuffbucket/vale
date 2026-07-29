@@ -61,18 +61,18 @@ func TestServeFullSession(t *testing.T) {
 		t.Errorf("protocolVersion = %v", initResult["protocolVersion"])
 	}
 
-	// tools/list has 2 tools
+	// tools/list has 3 tools
 	listResult := msgs[1]["result"].(map[string]any)
 	tools := listResult["tools"].([]any)
-	if len(tools) != 2 {
-		t.Fatalf("tools = %d, want 2", len(tools))
+	if len(tools) != 3 {
+		t.Fatalf("tools = %d, want 3", len(tools))
 	}
 	names := map[string]bool{}
 	for _, tl := range tools {
 		names[tl.(map[string]any)["name"].(string)] = true
 	}
-	if !names["lint_text"] || !names["list_rules"] {
-		t.Errorf("tool names = %v, want lint_text and list_rules", names)
+	if !names["lint_text"] || !names["list_rules"] || !names["fix_text"] {
+		t.Errorf("tool names = %v, want lint_text, list_rules, fix_text", names)
 	}
 
 	// tools/call returns content[0].text containing "findings"

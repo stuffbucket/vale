@@ -36,7 +36,14 @@ type fileConfig struct {
 	Vocabulary       *vocabularyFile        `yaml:"vocabulary"`
 	Files            *filesFile             `yaml:"files"`
 	Slop             *slopFile              `yaml:"slop"`
+	Model            *modelFile             `yaml:"model"`
 	Rules            map[string]RuleSetting `yaml:"rules"`
+}
+
+type modelFile struct {
+	Endpoint    *string  `yaml:"endpoint"`
+	Name        *string  `yaml:"name"`
+	Temperature *float64 `yaml:"temperature"`
 }
 
 type slopFile struct {
@@ -198,6 +205,17 @@ func mergeFile(acc *Config, fc *fileConfig) {
 	}
 	if fc.Slop != nil && fc.Slop.Enabled != nil {
 		acc.Slop.Enabled = *fc.Slop.Enabled
+	}
+	if fc.Model != nil {
+		if fc.Model.Endpoint != nil {
+			acc.Model.Endpoint = *fc.Model.Endpoint
+		}
+		if fc.Model.Name != nil {
+			acc.Model.Name = *fc.Model.Name
+		}
+		if fc.Model.Temperature != nil {
+			acc.Model.Temperature = fc.Model.Temperature
+		}
 	}
 	if len(fc.Rules) > 0 && acc.Rules == nil {
 		acc.Rules = map[string]RuleSetting{}

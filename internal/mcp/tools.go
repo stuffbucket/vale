@@ -1,9 +1,13 @@
 package mcp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
+	"github.com/stuffbucket/vale/internal/config"
+	"github.com/stuffbucket/vale/internal/eval"
+	"github.com/stuffbucket/vale/internal/fix"
 	"github.com/stuffbucket/vale/internal/lint"
 	"github.com/stuffbucket/vale/internal/linter"
 	"github.com/stuffbucket/vale/internal/report"
@@ -55,6 +59,24 @@ func (s *Server) toolsList() any {
 					"properties": map[string]any{},
 				},
 			},
+			{
+				Name:        "fix_text",
+				Description: "Rewrite text with a model so it resolves its Simplified Technical English findings. Returns the corrected document.",
+				InputSchema: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"text":     map[string]any{"type": "string", "description": "The text to fix."},
+						"filename": map[string]any{"type": "string", "description": "Optional file name; .md turns on Markdown mode."},
+						"model":    map[string]any{"type": "string", "description": "Model id to use; defaults to the model.name config."},
+						"temperature": map[string]any{
+							"type":        "number",
+							"description": "Sampling temperature override; omit to use the config or server default.",
+						},
+						"maxTokens": map[string]any{"type": "integer", "description": "Max tokens for the rewrite (default 2048)."},
+					},
+					"required": []string{"text"},
+				},
+			},
 		},
 	}
 }
@@ -76,6 +98,8 @@ func (s *Server) toolsCall(raw json.RawMessage) (any, *rpcError) {
 		return s.callLintText(p.Arguments)
 	case "list_rules":
 		return s.callListRules()
+	case "fix_text":
+		return s.callFixText(p.Arguments)
 	default:
 		return nil, &rpcError{Code: codeInvalidParams, Message: "unknown tool: " + p.Name}
 	}
@@ -128,6 +152,71 @@ func (s *Server) callLintText(raw json.RawMessage) (any, *rpcError) {
 		text += "\n\n" + body
 	}
 	return toolResultText(text), nil
+}
+
+// fixTextArgs is the shape of the fix_text arguments.
+type fixTextArgs struct {
+	Text        string   `json:"text"`
+	Filename    string   `json:"filename"`
+	Model       string   `json:"model"`
+	Temperature *float64 `json:"temperature"`
+	MaxTokens   int      `json:"maxTokens"`
+}
+
+// callFixText runs the fix_text tool: lint the text, then ask a model to rewrite
+// it to resolve the findings. Model and temperature come from the config unless
+// overridden in the call.
+func (s *Server) callFixText(raw json.RawMessage) (any, *rpcError) {
+	var args fixTextArgs
+	if len(raw) > 0 {
+		if err := json.Unmarshal(raw, &args); err != nil {
+			return nil, &rpcError{Code: codeInvalidParams, Message: "invalid arguments: " + err.Error()}
+		}
+	}
+	if args.Text == "" {
+		return toolError("The text argument is empty."), nil
+	}
+	filename := args.Filename
+	if filename == "" {
+		filename = "text"
+	}
+	cfg := s.linter.Config()
+
+	// Lint with the slop family on so the fix addresses slop too.
+	lintCfg := *cfg
+	lintCfg.Slop.Enabled = true
+	findings := linter.New(&lintCfg).LintText(filename, args.Text, linter.MarkdownAuto)
+
+	model := args.Model
+	if model == "" {
+		model = cfg.Model.Name
+	}
+	temp := args.Temperature
+	if temp == nil {
+		temp = cfg.Model.Temperature
+	}
+	maxTokens := args.MaxTokens
+	if maxTokens <= 0 {
+		maxTokens = 2048
+	}
+	endpoint := cfg.Model.Endpoint
+	if endpoint == "" {
+		endpoint = config.DefaultEndpoint
+	}
+
+	fixed, err := fix.Fix(context.Background(), fix.Options{
+		Client:      eval.NewClient(endpoint, ""),
+		Model:       model,
+		Path:        filename,
+		Text:        args.Text,
+		Findings:    findings,
+		MaxTokens:   maxTokens,
+		Temperature: temp,
+	})
+	if err != nil {
+		return toolError(err.Error()), nil
+	}
+	return toolResultText(fixed), nil
 }
 
 // callListRules runs the list_rules tool.

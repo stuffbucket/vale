@@ -55,6 +55,7 @@ type Config struct {
 	Vocabulary       Vocabulary             `yaml:"vocabulary"`
 	Files            Files                  `yaml:"files"`
 	Slop             Slop                   `yaml:"slop"`
+	Model            Model                  `yaml:"model"`
 	Rules            map[string]RuleSetting `yaml:"rules"`
 }
 
@@ -64,12 +65,25 @@ type Slop struct {
 	Enabled bool `yaml:"enabled"`
 }
 
+// Model configures the LLM endpoint used by `vale eval` and `vale --fix`.
+// Temperature is a pointer so "unset" (use the server default) is distinct from
+// an explicit 0. Any field is overridable on the command line.
+type Model struct {
+	Endpoint    string   `yaml:"endpoint"`
+	Name        string   `yaml:"name"`
+	Temperature *float64 `yaml:"temperature"`
+}
+
+// DefaultEndpoint is the local multi-family proxy the model commands target.
+const DefaultEndpoint = "http://localhost:4141"
+
 // Default returns a configuration with the standard values.
 func Default() *Config {
 	return &Config{
 		MinSeverity:      string(lint.SeverityError),
 		StrictVocabulary: false,
 		Sentence:         Sentence{ProcedureMax: 20, DescriptionMax: 25},
+		Model:            Model{Endpoint: DefaultEndpoint, Name: "claude-sonnet-5"},
 		Rules:            map[string]RuleSetting{},
 	}
 }

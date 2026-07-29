@@ -68,12 +68,12 @@ type Message struct {
 
 // Complete sends a single-turn prompt and returns the reply text. It tries the
 // chat-completions API first and transparently falls back to the Responses API
-// for models the endpoint only serves there (newer OpenAI/xAI models on the
-// local proxy report "not accessible via the /chat/completions endpoint").
-func (c *Client) Complete(ctx context.Context, model, prompt string, maxTokens int) (string, error) {
-	out, err := c.completeChat(ctx, model, prompt, maxTokens)
+// for models the endpoint only serves there. A non-nil temperature is passed to
+// the model; nil uses the server default.
+func (c *Client) Complete(ctx context.Context, model, prompt string, maxTokens int, temperature *float64) (string, error) {
+	out, err := c.completeChat(ctx, model, prompt, maxTokens, temperature)
 	if err != nil && unsupportedChatAPI(err) {
-		return c.completeResponses(ctx, model, prompt, maxTokens)
+		return c.completeResponses(ctx, model, prompt, maxTokens, temperature)
 	}
 	return out, err
 }
@@ -87,13 +87,16 @@ func unsupportedChatAPI(err error) bool {
 }
 
 // completeChat uses POST /v1/chat/completions.
-func (c *Client) completeChat(ctx context.Context, model, prompt string, maxTokens int) (string, error) {
+func (c *Client) completeChat(ctx context.Context, model, prompt string, maxTokens int, temperature *float64) (string, error) {
 	reqBody := map[string]any{
 		"model":    model,
 		"messages": []Message{{Role: "user", Content: prompt}},
 	}
 	if maxTokens > 0 {
 		reqBody["max_tokens"] = maxTokens
+	}
+	if temperature != nil {
+		reqBody["temperature"] = *temperature
 	}
 	raw, err := json.Marshal(reqBody)
 	if err != nil {
@@ -123,10 +126,13 @@ func (c *Client) completeChat(ctx context.Context, model, prompt string, maxToke
 
 // completeResponses uses POST /v1/responses and extracts the message text from
 // the output items (skipping reasoning items).
-func (c *Client) completeResponses(ctx context.Context, model, prompt string, maxTokens int) (string, error) {
+func (c *Client) completeResponses(ctx context.Context, model, prompt string, maxTokens int, temperature *float64) (string, error) {
 	reqBody := map[string]any{"model": model, "input": prompt}
 	if maxTokens > 0 {
 		reqBody["max_output_tokens"] = maxTokens
+	}
+	if temperature != nil {
+		reqBody["temperature"] = *temperature
 	}
 	raw, err := json.Marshal(reqBody)
 	if err != nil {

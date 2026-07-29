@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"io"
 	"os"
 	"path/filepath"
@@ -412,5 +413,22 @@ func TestReadValeIgnore(t *testing.T) {
 	pats := readValeIgnore(dir)
 	if len(pats) != 2 || pats[0] != "vendor/*" || pats[1] != "*.tmp.md" {
 		t.Errorf("readValeIgnore = %v, want [vendor/* *.tmp.md]", pats)
+	}
+}
+
+func TestParsePositionalInterspersed(t *testing.T) {
+	fs := flag.NewFlagSet("t", flag.ContinueOnError)
+	format := fs.String("format", "concise", "")
+	fixFlag := fs.Bool("fix", false, "")
+	// Flags before, between, and after positionals.
+	pos, err := parsePositional(fs, []string{"a.md", "--format", "json", "b.md", "--fix"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pos) != 2 || pos[0] != "a.md" || pos[1] != "b.md" {
+		t.Errorf("positional = %v, want [a.md b.md]", pos)
+	}
+	if *format != "json" || !*fixFlag {
+		t.Errorf("flags not parsed: format=%q fix=%v", *format, *fixFlag)
 	}
 }

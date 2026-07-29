@@ -78,6 +78,29 @@ directory, vale walks it and checks files with a known text ending (`.md`,
 | `--markdown` | `auto`, `on`, `off` | `auto` | Markdown mode. `auto` decides from the file ending. |
 | `--strict-vocabulary` | bool | `false` | Also report unapproved words that have no direct replacement. |
 | `--color` | `auto`, `always`, `never` | `auto` | Color the severity word. `auto` colors only when stdout is a terminal and `NO_COLOR` is unset. |
+| `--fix` | bool | `false` | Rewrite the file with a model so it resolves its findings; prints to stdout (see [Fixing a document](#fixing-a-document)). |
+
+Flags may appear before, between, or after the paths — `vale README.md --format json` works.
+
+### Fixing a document
+
+`vale --fix <file>` lints the file, sends the original text plus the findings to a
+model on the configured endpoint, and prints the corrected document to **stdout**
+(so you can pipe or redirect it). Pass `--output <file>` to write to a file
+instead. It fixes STE findings and the opt-in slop markers together.
+
+```
+$ vale --fix --temperature 0.2 draft.md > clean.md
+$ vale --fix draft.md --output draft.md          # rewrite in place
+```
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--model` | `model.name` config (`claude-sonnet-5`) | Model to rewrite with. |
+| `--endpoint` | `model.endpoint` config (`http://localhost:4141`) | OpenAI-compatible base URL. |
+| `--temperature` | `model.temperature` config / server default | Sampling temperature. |
+| `--output` | stdout | Write the corrected document here. |
+| `--max-tokens` | `2048` | Token budget for the rewrite. |
 
 ### Example output
 
@@ -144,7 +167,8 @@ fail the build.
 `vale eval` turns the [slop research](research/ai-slop/) into a measurement. It
 drives a configured OpenAI-compatible endpoint (by default `http://localhost:4141`),
 prompts each model, lints every reply with the `STE.Slop*` rules, and reports
-slop density per model and per family. Model families come from the endpoint's
+slop density per model and per family. At an interactive terminal it shows a live
+progress bar on stderr while the requests run. Model families come from the endpoint's
 `/v1/models` `owned_by` field; models the endpoint only serves through the
 Responses API are reached automatically via a `/v1/responses` fallback.
 
@@ -163,6 +187,7 @@ family slop density (STE.Slop findings per 100 words), most slop first:
 | `--models` | discover all | Comma-separated model ids; empty discovers every model from `/v1/models`. |
 | `--prompts` | built-in set | File with one prompt per line. |
 | `--max-tokens` | `400` | Max tokens per completion. |
+| `--temperature` | server default | Sampling temperature (or set `model.temperature` in config). |
 | `--concurrency` | `4` | Parallel requests. |
 | `--format` | `text` | `text` or `json`. |
 | `--api-key` | `$OPENAI_API_KEY` | Bearer token, if the endpoint needs one. |
@@ -309,6 +334,9 @@ message on each line (newline-delimited), and it reports MCP protocol version
   Markdown mode), `markdown` (optional boolean; overrides the file name), and
   `minSeverity` (optional; `error`, `warning`, or `suggestion`).
 - **`list_rules`** — list the rules the linter uses.
+- **`fix_text`** — rewrite text with a model so it resolves its findings; returns
+  the corrected document. Arguments: `text` (required), `filename`, `model`
+  (defaults to `model.name`), `temperature` (optional override), and `maxTokens`.
 
 ### Client configuration
 

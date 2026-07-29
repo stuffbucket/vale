@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/stuffbucket/vale/internal/lint"
 	"github.com/stuffbucket/vale/internal/linter"
@@ -21,7 +22,11 @@ type Options struct {
 	Models      []string       // explicit; empty means discover all from the endpoint
 	Prompts     []string
 	MaxTokens   int
+	Temperature *float64
 	Concurrency int
+	// OnProgress, if set, is called each time a sample finishes with the running
+	// done count and the total. It may be called from many goroutines.
+	OnProgress func(done, total int)
 }
 
 // Sample is the outcome of one (model, prompt) request.
@@ -93,6 +98,7 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 	samples := make([]Sample, len(tasks))
 	sem := make(chan struct{}, max(1, opts.Concurrency))
 	var wg sync.WaitGroup
+	var done int64
 	for i, t := range tasks {
 		wg.Add(1)
 		sem <- struct{}{}
@@ -100,7 +106,7 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 			defer wg.Done()
 			defer func() { <-sem }()
 			s := Sample{Model: t.model, Family: familyForID(familyOf, t.model), Prompt: t.prompt}
-			out, err := opts.Client.Complete(ctx, t.model, t.prompt, opts.MaxTokens)
+			out, err := opts.Client.Complete(ctx, t.model, t.prompt, opts.MaxTokens, opts.Temperature)
 			if err != nil {
 				s.Err = err
 			} else {
@@ -109,6 +115,9 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 				s.Findings = opts.Linter.LintText("output.md", out, linter.MarkdownOn)
 			}
 			samples[i] = s
+			if opts.OnProgress != nil {
+				opts.OnProgress(int(atomic.AddInt64(&done, 1)), len(tasks))
+			}
 		}(i, t)
 	}
 	wg.Wait()

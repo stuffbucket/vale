@@ -56,3 +56,10 @@ rules:
 # markers. Off by default. See research/ai-slop/.
 slop:
   enabled: false
+
+# model configures the LLM endpoint for `vale eval` and `vale --fix`. Any field
+# is overridable on the command line (and temperature via the MCP fix_text tool).
+model:
+  endpoint: "http://localhost:4141"
+  name: "claude-sonnet-5"
+  # temperature: 0.2   # unset uses the server default
