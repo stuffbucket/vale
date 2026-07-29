@@ -18,6 +18,7 @@ Usage:
   vale mcp                      Start the stdio MCP server.
   vale gen [flags]              Build the vocabulary rules from the wordset.
   vale rules                    List the rules.
+  vale eval [flags]             Measure slop across an LLM endpoint's models.
   vale version                  Print the version.
 
 Run "vale lint -h" for the lint flags.
@@ -43,6 +44,8 @@ func run(args []string) int {
 		return cmdGen(rest)
 	case "rules":
 		return cmdRules(rest)
+	case "eval":
+		return cmdEval(rest)
 	case "version", "--version", "-v":
 		fmt.Println(buildinfo.Get())
 		return 0

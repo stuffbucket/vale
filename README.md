@@ -133,9 +133,39 @@ fail the build.
 - `vale rules` prints the rule table (ID, severity, description).
 - `vale gen` regenerates the vocabulary source from the wordset (see
   [Self-referential generation](#self-referential-generation)).
+- `vale eval` measures slop across an LLM endpoint's models (see
+  [Evaluating models](#evaluating-models)).
 - `vale version` prints the build provenance: the semantic version, the source
   branch and commit, and the build timestamp (for example
   `vale 0.2.0 (branch main, commit 0d0c6fee13f6, built 2026-07-29T10:16:21Z)`).
+
+## Evaluating models
+
+`vale eval` turns the [slop research](research/ai-slop/) into a measurement. It
+drives a configured OpenAI-compatible endpoint (by default `http://localhost:4141`),
+prompts each model, lints every reply with the `STE.Slop*` rules, and reports
+slop density per model and per family. Model families come from the endpoint's
+`/v1/models` `owned_by` field; models the endpoint only serves through the
+Responses API are reached automatically via a `/v1/responses` fallback.
+
+```
+$ vale eval --models "claude-sonnet-5,gemini-2.5-pro,gpt-5.5,grok-4.5"
+family slop density (STE.Slop findings per 100 words), most slop first:
+  xAI          slop   0.93  all  17.59  (1 models, 324 words)
+  OpenAI       slop   0.67  all  19.06  (1 models, 299 words)
+  Anthropic    slop   0.65  all  17.63  (1 models, 465 words)
+  Google       slop   0.43  all  15.00  (1 models, 460 words)
+```
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--endpoint` | `http://localhost:4141` | OpenAI-compatible base URL. |
+| `--models` | discover all | Comma-separated model ids; empty discovers every model from `/v1/models`. |
+| `--prompts` | built-in set | File with one prompt per line. |
+| `--max-tokens` | `400` | Max tokens per completion. |
+| `--concurrency` | `4` | Parallel requests. |
+| `--format` | `text` | `text` or `json`. |
+| `--api-key` | `$OPENAI_API_KEY` | Bearer token, if the endpoint needs one. |
 
 ## Rules
 
