@@ -23,7 +23,11 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X main.version={{.Version}}
+      - -s -w
+      - -X github.com/stuffbucket/vale/internal/buildinfo.version={{ .Version }}
+      - -X github.com/stuffbucket/vale/internal/buildinfo.commit={{ .ShortCommit }}
+      - -X github.com/stuffbucket/vale/internal/buildinfo.branch={{ .Branch }}
+      - -X github.com/stuffbucket/vale/internal/buildinfo.date={{ .Date }}
 
 archives:
   - id: vale

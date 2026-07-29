@@ -1,8 +1,16 @@
 GO           ?= go
 BINARY       := vale
 PKG          := ./cmd/vale
+BI           := github.com/stuffbucket/vale/internal/buildinfo
 VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS      := -s -w -X main.version=$(VERSION)
+COMMIT       ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)
+BRANCH       ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)
+DATE         ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS      := -s -w \
+	-X $(BI).version=$(VERSION) \
+	-X $(BI).commit=$(COMMIT) \
+	-X $(BI).branch=$(BRANCH) \
+	-X $(BI).date=$(DATE)
 COVERPROFILE := coverage.txt
 
 export CGO_ENABLED := 0

@@ -5,10 +5,9 @@ package main
 import (
 	"fmt"
 	"os"
-)
 
-// version is the build version. The release build sets it with -ldflags.
-var version = "dev"
+	"github.com/stuffbucket/vale/internal/buildinfo"
+)
 
 // usage is the top-level help text.
 const usage = `vale - a Simplified Technical English linter and MCP server
@@ -44,7 +43,7 @@ func run(args []string) int {
 	case "rules":
 		return cmdRules(rest)
 	case "version", "--version", "-v":
-		fmt.Printf("vale %s\n", version)
+		fmt.Println(buildinfo.Get())
 		return 0
 	case "help", "-h", "--help":
 		fmt.Print(usage)

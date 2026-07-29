@@ -110,7 +110,9 @@ fail the build.
 - `vale rules` prints the rule table (ID, severity, description).
 - `vale gen` regenerates the vocabulary source from the wordset (see
   [Self-referential generation](#self-referential-generation)).
-- `vale version` prints the build version.
+- `vale version` prints the build provenance: the semantic version, the source
+  branch and commit, and the build timestamp (for example
+  `vale 0.2.0 (branch main, commit 0d0c6fee13f6, built 2026-07-29T10:16:21Z)`).
 
 ## Rules
 

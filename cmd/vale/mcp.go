@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/stuffbucket/vale/internal/buildinfo"
 	"github.com/stuffbucket/vale/internal/config"
 	"github.com/stuffbucket/vale/internal/linter"
 	"github.com/stuffbucket/vale/internal/mcp"
@@ -30,7 +31,7 @@ func cmdMCP(args []string) int {
 	defer stop()
 
 	lnt := linter.New(cfg)
-	if err := mcp.Serve(ctx, os.Stdin, os.Stdout, lnt, version); err != nil && ctx.Err() == nil {
+	if err := mcp.Serve(ctx, os.Stdin, os.Stdout, lnt, buildinfo.Get().Version); err != nil && ctx.Err() == nil {
 		fmt.Fprintf(os.Stderr, "mcp: %v\n", err)
 		return 1
 	}
