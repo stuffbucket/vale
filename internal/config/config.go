@@ -54,7 +54,14 @@ type Config struct {
 	Sentence         Sentence               `yaml:"sentence"`
 	Vocabulary       Vocabulary             `yaml:"vocabulary"`
 	Files            Files                  `yaml:"files"`
+	Slop             Slop                   `yaml:"slop"`
 	Rules            map[string]RuleSetting `yaml:"rules"`
+}
+
+// Slop turns on the STE.Slop* rule family: opt-in, advisory checks for markers
+// of LLM-generated "slop." Off by default. See research/ai-slop/.
+type Slop struct {
+	Enabled bool `yaml:"enabled"`
 }
 
 // Default returns a configuration with the standard values.

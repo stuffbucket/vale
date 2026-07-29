@@ -35,7 +35,12 @@ type fileConfig struct {
 	Sentence         *sentenceFile          `yaml:"sentence"`
 	Vocabulary       *vocabularyFile        `yaml:"vocabulary"`
 	Files            *filesFile             `yaml:"files"`
+	Slop             *slopFile              `yaml:"slop"`
 	Rules            map[string]RuleSetting `yaml:"rules"`
+}
+
+type slopFile struct {
+	Enabled *bool `yaml:"enabled"`
 }
 
 type filesFile struct {
@@ -190,6 +195,9 @@ func mergeFile(acc *Config, fc *fileConfig) {
 	if fc.Files != nil {
 		acc.Files.Include = append(acc.Files.Include, fc.Files.Include...)
 		acc.Files.Exclude = append(acc.Files.Exclude, fc.Files.Exclude...)
+	}
+	if fc.Slop != nil && fc.Slop.Enabled != nil {
+		acc.Slop.Enabled = *fc.Slop.Enabled
 	}
 	if len(fc.Rules) > 0 && acc.Rules == nil {
 		acc.Rules = map[string]RuleSetting{}

@@ -3,6 +3,7 @@ package rules
 import (
 	"testing"
 
+	"github.com/stuffbucket/vale/internal/config"
 	"github.com/stuffbucket/vale/internal/lint"
 )
 
@@ -428,5 +429,41 @@ func TestVocabularyRuleAllowSkipsPhrase(t *testing.T) {
 	got := NewVocabularyRule(false, allowed).Check(parsePlain("Open the valve according to the manual."))
 	if len(got) != 0 {
 		t.Fatalf("count = %d, want 0 (allowed phrase): %+v", len(got), got)
+	}
+}
+
+func TestSlopRulesOptIn(t *testing.T) {
+	cfg := config.Default()
+	// Off by default: no STE.Slop* rule present.
+	for _, r := range Default(cfg) {
+		if r.ID() == "STE.SlopVocabulary" {
+			t.Fatal("slop rules must be off by default")
+		}
+	}
+	// Enabled: the family appears.
+	cfg.Slop.Enabled = true
+	found := false
+	for _, r := range Default(cfg) {
+		if r.ID() == "STE.SlopVocabulary" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("slop rules should register when enabled")
+	}
+}
+
+func TestSlopVocabularyRuleFlagsWatchlist(t *testing.T) {
+	r := NewSlopVocabularyRule()
+	got := r.Check(parsePlain("We delve into the intricate realm of valves."))
+	if len(got) < 2 {
+		t.Fatalf("expected several slop words flagged, got %d: %+v", len(got), got)
+	}
+	if r.DefaultSeverity() != lint.SeverityWarning {
+		t.Errorf("severity = %q, want warning", r.DefaultSeverity())
+	}
+	// A plain word is not flagged.
+	if plain := r.Check(parsePlain("Open the valve.")); len(plain) != 0 {
+		t.Errorf("plain sentence should not be flagged: %+v", plain)
 	}
 }

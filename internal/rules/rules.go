@@ -9,12 +9,12 @@ import (
 )
 
 // Default builds the standard set of rules. The configuration sets the sentence
-// limits and turns the strict vocabulary list on or off.
+// limits, the vocabulary options, and whether the opt-in STE.Slop* family runs.
 func Default(cfg *config.Config) []lint.Rule {
 	if cfg == nil {
 		cfg = config.Default()
 	}
-	return []lint.Rule{
+	base := []lint.Rule{
 		NewSentenceLengthRule(cfg.Sentence.ProcedureMax, cfg.Sentence.DescriptionMax),
 		NewContractionRule(),
 		NewPassiveVoiceRule(),
@@ -23,4 +23,5 @@ func Default(cfg *config.Config) []lint.Rule {
 		NewOneInstructionRule(),
 		NewVocabularyRule(cfg.StrictVocabulary, cfg.AllowedVocabulary()),
 	}
+	return append(base, slopRules(cfg.Slop.Enabled)...)
 }

@@ -51,3 +51,8 @@ rules:
     severity: warning
   STE.Vocabulary:
     disabled: false
+
+# slop turns on the opt-in STE.Slop* family: advisory checks for LLM "slop"
+# markers. Off by default. See research/ai-slop/.
+slop:
+  enabled: false
