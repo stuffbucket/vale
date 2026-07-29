@@ -56,5 +56,11 @@ func slopRules(enabled bool) []lint.Rule {
 	}
 	return []lint.Rule{
 		NewSlopVocabularyRule(),
+		NewSlopRestatementRule(),
+		NewSlopImpersonalHedgeRule(),
+		NewSlopNegativeParallelismRule(),
+		NewSlopEvaluativeRule(),
+		NewSlopHedgeDensityRule(),
+		NewSlopNominalizationRule(),
 	}
 }
