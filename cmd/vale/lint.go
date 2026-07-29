@@ -29,6 +29,7 @@ func cmdLint(args []string) int {
 	format := fs.String("format", "text", "output format: text or json")
 	markdownFlag := fs.String("markdown", "auto", "markdown mode: auto, on, or off")
 	strict := fs.Bool("strict-vocabulary", false, "also report unapproved words with no replacement")
+	colorFlag := fs.String("color", "auto", "color: auto, always, or never")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -59,6 +60,10 @@ func cmdLint(args []string) int {
 		fmt.Fprintf(os.Stderr, "lint: unknown format %q\n", *format)
 		return 2
 	}
+	if *colorFlag != "auto" && *colorFlag != "always" && *colorFlag != "never" {
+		fmt.Fprintf(os.Stderr, "lint: unknown color mode %q\n", *colorFlag)
+		return 2
+	}
 
 	lnt := linter.New(cfg)
 	files, err := collectFiles(paths)
@@ -85,7 +90,7 @@ func cmdLint(args []string) int {
 	} else {
 		// Findings go to stdout (one clickable line each); the summary goes to
 		// stderr so a pipe over stdout gets nothing but path:line:col findings.
-		report.Text(os.Stdout, results)
+		report.Text(os.Stdout, results, shouldColor(*colorFlag, os.Stdout))
 		fmt.Fprintln(os.Stderr, report.SummaryLine(results))
 	}
 
@@ -93,6 +98,24 @@ func cmdLint(args []string) int {
 		return 1
 	}
 	return 0
+}
+
+// shouldColor decides whether to color the output. "always" and "never" force
+// it; "auto" (the default) turns color on only when the writer is a terminal
+// and NO_COLOR is unset, so a pipe, a redirect, or CI gets plain text.
+func shouldColor(mode string, f *os.File) bool {
+	switch mode {
+	case "always":
+		return true
+	case "never":
+		return false
+	default:
+		if os.Getenv("NO_COLOR") != "" {
+			return false
+		}
+		info, err := f.Stat()
+		return err == nil && info.Mode()&os.ModeCharDevice != 0
+	}
 }
 
 // parseMarkdownMode reads the markdown flag value.

@@ -4,18 +4,11 @@ package config
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/stuffbucket/vale/internal/lint"
 	"github.com/stuffbucket/vale/internal/vocab"
-	"gopkg.in/yaml.v3"
 )
-
-// DefaultFileNames are the file names that Load looks for when the caller does
-// not give an explicit path.
-var DefaultFileNames = []string{".vale-ste.yml", ".vale-ste.yaml"}
 
 // Sentence holds the word limits for the sentence-length rule.
 type Sentence struct {
@@ -64,23 +57,18 @@ func Default() *Config {
 	}
 }
 
-// Load reads a configuration file. When path is empty, it looks for a default
-// file name in dir and its parents. When it finds no file, it returns the
-// default configuration.
+// Load resolves the layered configuration. It merges (lowest to highest) the
+// system, user (XDG), project, and project-local files, then an explicit path
+// when given. See layers.go for the precedence and merge rules. A missing file
+// at any layer is skipped; the result always has safe defaults.
 func Load(path, dir string) (*Config, error) {
-	if path == "" {
-		path = search(dir)
-	}
 	cfg := Default()
-	if path == "" {
-		return cfg, nil
-	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read config: %w", err)
-	}
-	if err := yaml.Unmarshal(raw, cfg); err != nil {
-		return nil, fmt.Errorf("parse config %s: %w", path, err)
+	for _, layer := range discoverLayers(dir, path) {
+		fc, err := loadFileLayer(layer)
+		if err != nil {
+			return nil, err
+		}
+		mergeFile(cfg, fc)
 	}
 	if cfg.Rules == nil {
 		cfg.Rules = map[string]RuleSetting{}
@@ -89,30 +77,6 @@ func Load(path, dir string) (*Config, error) {
 		return nil, err
 	}
 	return cfg, nil
-}
-
-// search walks up from dir and returns the first default config file it finds.
-func search(dir string) string {
-	if dir == "" {
-		dir = "."
-	}
-	abs, err := filepath.Abs(dir)
-	if err != nil {
-		return ""
-	}
-	for {
-		for _, name := range DefaultFileNames {
-			candidate := filepath.Join(abs, name)
-			if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
-				return candidate
-			}
-		}
-		parent := filepath.Dir(abs)
-		if parent == abs {
-			return ""
-		}
-		abs = parent
-	}
 }
 
 // validate checks the configuration values.

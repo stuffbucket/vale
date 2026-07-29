@@ -76,6 +76,7 @@ directory, vale walks it and checks files with a known text ending (`.md`,
 | `--format` | `text`, `json` | `text` | Output format. |
 | `--markdown` | `auto`, `on`, `off` | `auto` | Markdown mode. `auto` decides from the file ending. |
 | `--strict-vocabulary` | bool | `false` | Also report unapproved words that have no direct replacement. |
+| `--color` | `auto`, `always`, `never` | `auto` | Color the severity word. `auto` colors only when stdout is a terminal and `NO_COLOR` is unset. |
 
 ### Example output
 
@@ -90,7 +91,9 @@ notes.txt:1:74: suggestion: The -ing form "using" is hard to read in an instruct
 ```
 
 Findings go to stdout, one per line; the summary count goes to stderr. So a pipe
-over stdout (`vale docs/ | …`) gets nothing but `path:line:col` findings.
+over stdout (`vale docs/ | …`) gets nothing but `path:line:col` findings. Output
+adapts to the caller: at an interactive terminal the severity word is colored;
+piped, redirected, or under CI it is plain text, so nothing is harder to parse.
 
 JSON output (`--format json`) writes a `results` array; each result has a `path`
 and a `findings` array. Each finding has `ruleId`, `severity`, `message`, `hint`,
@@ -155,11 +158,23 @@ vocabulary:
 
 ## Configuration
 
-Vale reads an optional YAML file named `.vale-ste.yml` (or `.vale-ste.yaml`). It
-searches upward from the working directory, so a file at the repository root
-applies to the whole tree. Pass `--config <path>` to point at a specific file.
-All fields have safe defaults, so the file is optional. See
-[`.vale-ste.example.yml`](.vale-ste.example.yml) for a full example.
+vale resolves configuration from several files, broad to narrow, the way
+XDG-aware tools do. Lowest to highest precedence:
+
+| Layer | Location |
+| --- | --- |
+| System | `$XDG_CONFIG_DIRS/vale-ste/config.yml` (default `/etc/xdg`) |
+| User | `$XDG_CONFIG_HOME/vale-ste/config.yml` (default `~/.config`) |
+| Project | the nearest `.vale-ste.yml`, searching up from the working directory |
+| Project-local | the nearest `.vale-ste.local.yml` (personal, git-ignore it) |
+| Explicit | `--config <path>`, when given |
+
+A scalar from a higher layer replaces a lower one (a project `minSeverity` beats
+the user default). `vocabulary.allow` and `vocabulary.deny` **accumulate** across
+layers, so a personal allow list in `~/.config/vale-ste/config.yml` adds to the
+project's list rather than replacing it. Rule settings merge per rule id. A
+missing file at any layer is skipped, and all fields have safe defaults, so no
+config is required.
 
 ```yaml
 # The gate for the command-line exit code: error, warning, or suggestion.

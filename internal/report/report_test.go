@@ -52,7 +52,7 @@ func TestSummarizeEmpty(t *testing.T) {
 
 func TestText(t *testing.T) {
 	var buf bytes.Buffer
-	Text(&buf, sampleResults())
+	Text(&buf, sampleResults(), false)
 	out := buf.String()
 
 	// Each finding is one actionable "path:line:col: severity: message [rule]" line.
@@ -68,6 +68,23 @@ func TestText(t *testing.T) {
 	// The summary is not part of Text; the caller writes it separately.
 	if strings.Contains(out, "problems (") {
 		t.Errorf("Text must not print the summary: %q", out)
+	}
+	// Plain mode carries no ANSI escapes.
+	if strings.Contains(out, "\x1b[") {
+		t.Errorf("plain Text must not emit ANSI: %q", out)
+	}
+}
+
+func TestTextColor(t *testing.T) {
+	var buf bytes.Buffer
+	Text(&buf, sampleResults(), true)
+	out := buf.String()
+	// The severity word is wrapped in ANSI; the path stays plain and clickable.
+	if !strings.Contains(out, "\x1b[31merror\x1b[0m") {
+		t.Errorf("color mode should wrap the severity: %q", out)
+	}
+	if !strings.Contains(out, "a.md:1:1: ") {
+		t.Errorf("path:line:col prefix must stay plain: %q", out)
 	}
 }
 
@@ -85,7 +102,7 @@ func TestTextSkipsFilesWithNoFindings(t *testing.T) {
 	results := []FileResult{
 		{Path: "clean.md", Findings: nil},
 	}
-	Text(&buf, results)
+	Text(&buf, results, false)
 	if out := buf.String(); out != "" {
 		t.Errorf("clean file must produce no output: %q", out)
 	}
@@ -98,7 +115,7 @@ func TestTextNoHintOmitsHintLine(t *testing.T) {
 			{RuleID: "R", Severity: lint.SeverityError, Message: "No hint.", Line: 1, Col: 1},
 		}},
 	}
-	Text(&buf, results)
+	Text(&buf, results, false)
 	if strings.Contains(buf.String(), "hint:") {
 		t.Errorf("should not print hint line when hint is empty: %q", buf.String())
 	}

@@ -1,6 +1,10 @@
 # Example configuration for the vale Simplified Technical English linter.
-# Copy this file to .vale-ste.yml and change the values as necessary.
-# All fields have defaults, so the file is optional.
+# Copy this file to .vale-ste.yml (project) or ~/.config/vale-ste/config.yml
+# (user), and change the values as necessary. vale merges, lowest to highest:
+# system -> user (XDG) -> project (.vale-ste.yml) -> project-local
+# (.vale-ste.local.yml) -> --config. Scalars from a higher layer win; the
+# vocabulary allow/deny lists accumulate across layers. All fields have
+# defaults, so the file is optional.
 
 # minSeverity is the gate for the command-line exit code. The linter exits
 # with a failure when it finds a problem at this level or higher.

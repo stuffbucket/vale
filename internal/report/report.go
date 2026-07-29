@@ -51,18 +51,39 @@ func Summarize(results []FileResult) Summary {
 //
 // Every line carries the file path and position so an editor, a terminal, or a
 // CI problem matcher can jump straight to the location. The hint is appended
-// when the finding has one. Text writes findings only; call SummaryLine for the
-// count so the caller can keep it off stdout.
-func Text(w io.Writer, results []FileResult) {
+// when the finding has one. When color is true, the severity word is wrapped in
+// an ANSI color; the rest of the line stays plain so it survives grep and
+// click-through. Text writes findings only; call SummaryLine for the count so
+// the caller can keep it off stdout.
+func Text(w io.Writer, results []FileResult, color bool) {
 	for _, r := range results {
 		for _, f := range r.Findings {
-			line := fmt.Sprintf("%s:%d:%d: %s: %s [%s]", r.Path, f.Line, f.Col, f.Severity, f.Message, f.RuleID)
+			sev := string(f.Severity)
+			if color {
+				sev = colorize(f.Severity)
+			}
+			line := fmt.Sprintf("%s:%d:%d: %s: %s [%s]", r.Path, f.Line, f.Col, sev, f.Message, f.RuleID)
 			if f.Hint != "" {
 				line += " hint: " + f.Hint
 			}
 			fmt.Fprintln(w, line)
 		}
 	}
+}
+
+// colorize wraps a severity word in an ANSI color: error red, warning yellow,
+// suggestion cyan.
+func colorize(s lint.Severity) string {
+	code := "0"
+	switch s {
+	case lint.SeverityError:
+		code = "31"
+	case lint.SeverityWarning:
+		code = "33"
+	case lint.SeveritySuggestion:
+		code = "36"
+	}
+	return "\x1b[" + code + "m" + string(s) + "\x1b[0m"
 }
 
 // SummaryLine returns the one-line count of findings by severity.

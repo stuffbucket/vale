@@ -8,6 +8,21 @@ import (
 	"github.com/stuffbucket/vale/internal/lint"
 )
 
+// TestMain isolates every test from the machine's real XDG config so a stray
+// ~/.config/vale-ste/config.yml cannot leak into a test's result.
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "vale-cfg-test")
+	if err != nil {
+		panic(err)
+	}
+	os.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "xdg-home"))
+	os.Setenv("XDG_CONFIG_DIRS", filepath.Join(dir, "xdg-dirs"))
+	os.Setenv("HOME", filepath.Join(dir, "home"))
+	code := m.Run()
+	os.RemoveAll(dir)
+	os.Exit(code)
+}
+
 func TestDefault(t *testing.T) {
 	c := Default()
 	if c.MinSeverity != "error" {
@@ -238,5 +253,76 @@ func TestAllowedVocabularyBuiltinOff(t *testing.T) {
 	}
 	if !allowed["commit"] {
 		t.Errorf("explicit allow must still work when the built-in set is off")
+	}
+}
+
+func TestLayeredUserAndProjectMerge(t *testing.T) {
+	// User (XDG) layer: sets a gate and a user allow term.
+	xdg := t.TempDir()
+	userDir := filepath.Join(xdg, "vale-ste")
+	if err := os.MkdirAll(userDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mustWriteCfg(t, filepath.Join(userDir, "config.yml"),
+		"minSeverity: warning\nvocabulary:\n  allow: [copilot]\n")
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+
+	// Project layer: overrides the gate and adds another allow term.
+	proj := t.TempDir()
+	mustWriteCfg(t, filepath.Join(proj, ".vale-ste.yml"),
+		"minSeverity: error\nvocabulary:\n  allow: [tauri]\n")
+
+	cfg, err := Load("", proj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The project scalar wins over the user scalar.
+	if cfg.MinSeverity != "error" {
+		t.Errorf("MinSeverity = %q, want error (project overrides user)", cfg.MinSeverity)
+	}
+	// allow lists from both layers accumulate.
+	allowed := cfg.AllowedVocabulary()
+	if !allowed["copilot"] || !allowed["tauri"] {
+		t.Errorf("allow lists did not accumulate across layers: %+v", cfg.Vocabulary.Allow)
+	}
+}
+
+func TestLayeredLocalOverridesProject(t *testing.T) {
+	proj := t.TempDir()
+	mustWriteCfg(t, filepath.Join(proj, ".vale-ste.yml"), "minSeverity: error\n")
+	mustWriteCfg(t, filepath.Join(proj, ".vale-ste.local.yml"), "minSeverity: suggestion\n")
+	cfg, err := Load("", proj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.MinSeverity != "suggestion" {
+		t.Errorf("MinSeverity = %q, want suggestion (local overrides project)", cfg.MinSeverity)
+	}
+}
+
+func TestLayeredExplicitConfigIsTopLayer(t *testing.T) {
+	proj := t.TempDir()
+	mustWriteCfg(t, filepath.Join(proj, ".vale-ste.yml"),
+		"minSeverity: error\nvocabulary:\n  allow: [fromproject]\n")
+	explicit := filepath.Join(t.TempDir(), "explicit.yml")
+	mustWriteCfg(t, explicit,
+		"minSeverity: warning\nvocabulary:\n  allow: [fromexplicit]\n")
+	cfg, err := Load(explicit, proj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.MinSeverity != "warning" {
+		t.Errorf("explicit --config should win: MinSeverity = %q", cfg.MinSeverity)
+	}
+	allowed := cfg.AllowedVocabulary()
+	if !allowed["fromproject"] || !allowed["fromexplicit"] {
+		t.Errorf("explicit config should layer on top, not replace: %+v", cfg.Vocabulary.Allow)
+	}
+}
+
+func mustWriteCfg(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
