@@ -349,7 +349,7 @@ func TestOneInstructionRuleMetadata(t *testing.T) {
 }
 
 func TestVocabularyRuleSingle(t *testing.T) {
-	got := NewVocabularyRule(false).Check(parsePlain("Open the valve able tool."))
+	got := NewVocabularyRule(false, nil).Check(parsePlain("Open the valve able tool."))
 	if len(got) != 1 {
 		t.Fatalf("count = %d, want 1: %+v", len(got), got)
 	}
@@ -366,7 +366,7 @@ func TestVocabularyRuleSingle(t *testing.T) {
 }
 
 func TestVocabularyRulePhrase(t *testing.T) {
-	got := NewVocabularyRule(false).Check(parsePlain("Open the valve according to the manual."))
+	got := NewVocabularyRule(false, nil).Check(parsePlain("Open the valve according to the manual."))
 	if len(got) != 1 {
 		t.Fatalf("count = %d, want 1: %+v", len(got), got)
 	}
@@ -381,7 +381,7 @@ func TestVocabularyRulePhrase(t *testing.T) {
 
 func TestVocabularyRuleStrictBareWord(t *testing.T) {
 	// "bolt" is an unapproved bare word with no substitution.
-	strict := NewVocabularyRule(true).Check(parsePlain("Open the bolt here."))
+	strict := NewVocabularyRule(true, nil).Check(parsePlain("Open the bolt here."))
 	if len(strict) != 1 {
 		t.Fatalf("strict count = %d, want 1: %+v", len(strict), strict)
 	}
@@ -397,18 +397,36 @@ func TestVocabularyRuleStrictBareWord(t *testing.T) {
 	}
 
 	// Without strict, the bare word produces no finding.
-	loose := NewVocabularyRule(false).Check(parsePlain("Open the bolt here."))
+	loose := NewVocabularyRule(false, nil).Check(parsePlain("Open the bolt here."))
 	if len(loose) != 0 {
 		t.Fatalf("loose count = %d, want 0: %+v", len(loose), loose)
 	}
 }
 
 func TestVocabularyRuleMetadata(t *testing.T) {
-	r := NewVocabularyRule(false)
+	r := NewVocabularyRule(false, nil)
 	if r.ID() != "STE.Vocabulary" {
 		t.Errorf("ID = %q", r.ID())
 	}
 	if r.DefaultSeverity() != lint.SeveritySuggestion {
 		t.Errorf("severity = %q", r.DefaultSeverity())
+	}
+}
+
+func TestVocabularyRuleAllowSkipsWord(t *testing.T) {
+	// "able" is flagged by default, but an allow entry approves it.
+	allowed := map[string]bool{"able": true}
+	got := NewVocabularyRule(false, allowed).Check(parsePlain("Open the valve able tool."))
+	if len(got) != 0 {
+		t.Fatalf("count = %d, want 0 (allowed): %+v", len(got), got)
+	}
+}
+
+func TestVocabularyRuleAllowSkipsPhrase(t *testing.T) {
+	// An allowed multiword technical phrase is not flagged.
+	allowed := map[string]bool{"according to": true}
+	got := NewVocabularyRule(false, allowed).Check(parsePlain("Open the valve according to the manual."))
+	if len(got) != 0 {
+		t.Fatalf("count = %d, want 0 (allowed phrase): %+v", len(got), got)
 	}
 }

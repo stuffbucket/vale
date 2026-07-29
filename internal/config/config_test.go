@@ -204,3 +204,39 @@ func TestGate(t *testing.T) {
 		})
 	}
 }
+
+func TestAllowedVocabularyBuiltinOnByDefault(t *testing.T) {
+	allowed := Default().AllowedVocabulary()
+	for _, term := range []string{"commit", "component", "cache", "design token"} {
+		if !allowed[term] {
+			t.Errorf("built-in technical term %q missing from default allow set", term)
+		}
+	}
+}
+
+func TestAllowedVocabularyAllowAndDeny(t *testing.T) {
+	c := Default()
+	c.Vocabulary.Allow = []string{"Foobar", "  Widget  "} // mixed case and padding
+	c.Vocabulary.Deny = []string{"Commit"}                // deny overrides the built-in
+	allowed := c.AllowedVocabulary()
+	if !allowed["foobar"] || !allowed["widget"] {
+		t.Errorf("allow entries not normalized and added: %+v", allowed["foobar"])
+	}
+	if allowed["commit"] {
+		t.Errorf("deny did not remove the built-in term")
+	}
+}
+
+func TestAllowedVocabularyBuiltinOff(t *testing.T) {
+	c := Default()
+	off := false
+	c.Vocabulary.BuiltinTechnicalTerms = &off
+	c.Vocabulary.Allow = []string{"commit"}
+	allowed := c.AllowedVocabulary()
+	if allowed["component"] {
+		t.Errorf("built-in terms present when builtinTechnicalTerms is off")
+	}
+	if !allowed["commit"] {
+		t.Errorf("explicit allow must still work when the built-in set is off")
+	}
+}

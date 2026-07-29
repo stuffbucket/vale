@@ -21,6 +21,6 @@ func Default(cfg *config.Config) []lint.Rule {
 		NewIngFormRule(),
 		NewPhrasalVerbRule(),
 		NewOneInstructionRule(),
-		NewVocabularyRule(cfg.StrictVocabulary),
+		NewVocabularyRule(cfg.StrictVocabulary, cfg.AllowedVocabulary()),
 	}
 }

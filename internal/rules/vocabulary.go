@@ -14,6 +14,7 @@ import (
 // direct replacement.
 type VocabularyRule struct {
 	strict  bool
+	allowed map[string]bool     // approved technical terms and phrases to skip
 	single  map[string][]string // one word -> approved replacements
 	phrases []vocabPhrase       // multiword entries, longest first
 	bare    map[string]bool     // strict-only words with no replacement
@@ -25,12 +26,15 @@ type vocabPhrase struct {
 	replace []string
 }
 
-// NewVocabularyRule builds the rule from the generated vocabulary data.
-func NewVocabularyRule(strict bool) *VocabularyRule {
+// NewVocabularyRule builds the rule from the generated vocabulary data. The
+// allowed set holds approved technical terms and phrases (the built-in software
+// and design set plus the project's vocabulary.allow) that the rule never flags.
+func NewVocabularyRule(strict bool, allowed map[string]bool) *VocabularyRule {
 	r := &VocabularyRule{
-		strict: strict,
-		single: map[string][]string{},
-		bare:   map[string]bool{},
+		strict:  strict,
+		allowed: allowed,
+		single:  map[string][]string{},
+		bare:    map[string]bool{},
 	}
 	for _, s := range vocab.Substitutions {
 		if strings.Contains(s.Word, " ") {
@@ -70,15 +74,23 @@ func (r *VocabularyRule) Check(doc *lint.Document) []lint.Finding {
 				if matchPhrase(toks, i, p.words) {
 					first, last := toks[i], toks[i+len(p.words)-1]
 					phrase := strings.Join(p.words, " ")
-					findings = append(findings, vocabFinding(first, last, phrase, p.replace))
 					for k := 0; k < len(p.words); k++ {
 						covered[i+k] = true
 					}
+					// An approved technical phrase is covered but not reported.
+					if r.allowed[phrase] {
+						continue
+					}
+					findings = append(findings, vocabFinding(first, last, phrase, p.replace))
 				}
 			}
 		}
 		for i, t := range toks {
 			if covered[i] {
+				continue
+			}
+			// Skip approved technical terms (built-in plus vocabulary.allow).
+			if r.allowed[t.Lower] {
 				continue
 			}
 			if alts, ok := r.single[t.Lower]; ok {

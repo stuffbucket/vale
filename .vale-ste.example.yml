@@ -16,6 +16,22 @@ sentence:
   procedureMax: 20
   descriptionMax: 25
 
+# vocabulary tunes the STE.Vocabulary rule. ASD-STE100 lets a project approve
+# Technical Names and Technical Verbs beyond the core dictionary. vale ships a
+# built-in set for software and design (commit, cache, token, component, and so
+# on), so those words are not flagged.
+vocabulary:
+  # builtinTechnicalTerms turns the built-in software and design set on or off.
+  # It is on by default.
+  builtinTechnicalTerms: true
+  # allow adds project terms (single words or phrases) to the approved set.
+  allow:
+    - copilot
+    - tauri
+    - sidecar
+  # deny removes terms from the approved set, so STE checks them again.
+  deny: []
+
 # rules overrides the behavior of one rule. You can disable a rule or change
 # its severity.
 rules:

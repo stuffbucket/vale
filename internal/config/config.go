@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/stuffbucket/vale/internal/lint"
+	"github.com/stuffbucket/vale/internal/vocab"
 	"gopkg.in/yaml.v3"
 )
 
@@ -27,6 +29,18 @@ type RuleSetting struct {
 	Severity string `yaml:"severity"`
 }
 
+// Vocabulary tunes which words the STE.Vocabulary rule treats as approved. The
+// built-in software and design technical terms are on by default; allow adds
+// project terms, and deny removes terms from the approved set so STE checks them
+// again.
+type Vocabulary struct {
+	Allow []string `yaml:"allow"`
+	Deny  []string `yaml:"deny"`
+	// BuiltinTechnicalTerms turns the built-in software and design terms on or
+	// off. A nil pointer (the field absent) means on.
+	BuiltinTechnicalTerms *bool `yaml:"builtinTechnicalTerms"`
+}
+
 // Config is the full configuration.
 type Config struct {
 	// MinSeverity is the gate for the command line. The linter fails when it
@@ -36,6 +50,7 @@ type Config struct {
 	// default because it makes many findings on ordinary prose.
 	StrictVocabulary bool                   `yaml:"strictVocabulary"`
 	Sentence         Sentence               `yaml:"sentence"`
+	Vocabulary       Vocabulary             `yaml:"vocabulary"`
 	Rules            map[string]RuleSetting `yaml:"rules"`
 }
 
@@ -137,6 +152,33 @@ func (c *Config) EngineConfig() lint.EngineConfig {
 		}
 	}
 	return ec
+}
+
+// AllowedVocabulary returns the set of lower-case words and phrases that the
+// STE.Vocabulary rule must treat as approved: the built-in software and design
+// technical terms (unless turned off), plus vocabulary.allow, minus
+// vocabulary.deny. deny wins over both allow and the built-in set.
+func (c *Config) AllowedVocabulary() map[string]bool {
+	allowed := map[string]bool{}
+	if c.Vocabulary.BuiltinTechnicalTerms == nil || *c.Vocabulary.BuiltinTechnicalTerms {
+		for _, t := range vocab.TechnicalTerms {
+			allowed[normalizeTerm(t)] = true
+		}
+	}
+	for _, t := range c.Vocabulary.Allow {
+		if n := normalizeTerm(t); n != "" {
+			allowed[n] = true
+		}
+	}
+	for _, t := range c.Vocabulary.Deny {
+		delete(allowed, normalizeTerm(t))
+	}
+	return allowed
+}
+
+// normalizeTerm lower-cases a term and collapses its surrounding whitespace.
+func normalizeTerm(t string) string {
+	return strings.ToLower(strings.TrimSpace(t))
 }
 
 // Gate returns the minimum severity for the command-line exit code.

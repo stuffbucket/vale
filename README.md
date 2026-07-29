@@ -126,10 +126,28 @@ fail the build.
 | `STE.IngForms` | `suggestion` | Flags `-ing` verb forms in instructions, which are hard to read. |
 | `STE.PhrasalVerbs` | `warning` | Flags phrasal verbs from a curated set; prefer one clear verb. |
 | `STE.OneInstruction` | `warning` | Asks for one instruction in one sentence. |
-| `STE.Vocabulary` | `suggestion` | Reports words that are not approved STE, with an approved replacement from the OpenSTE wordset. |
+| `STE.Vocabulary` | `suggestion` | Reports words that are not approved STE, with an approved replacement from the OpenSTE wordset. Approved technical terms are skipped (see [Technical terms](#technical-terms)). |
 
 Every rule reports a stable ID, a severity, and a fix hint. You can disable a
 rule or change its severity in the config file.
+
+### Technical terms
+
+ASD-STE100 does not expect its core dictionary to name a domain; it lets a
+project approve **Technical Names** (nouns) and **Technical Verbs** for its own
+field. vale ships a built-in set for the software development lifecycle and for
+design — `commit`, `branch`, `cache`, `token`, `endpoint`, `component`,
+`viewport`, `design token`, and many more — so `STE.Vocabulary` does not flag
+them or suggest an aerospace-sense replacement (for example `file` → `remove`).
+
+Tune the set in the `vocabulary` block of the config:
+
+```yaml
+vocabulary:
+  builtinTechnicalTerms: true # the built-in software and design set (default on)
+  allow: [copilot, tauri, sidecar] # project terms, single words or phrases
+  deny: [] # remove terms from the approved set to check them again
+```
 
 ## Configuration
 
