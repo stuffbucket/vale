@@ -343,11 +343,12 @@ message on each line (newline-delimited), and it reports MCP protocol version
   the vocab store and rebuilds the linter, so later `lint_text` and `fix_text`
   calls honor them — the server adapts to the session.
 
-The server runs in session mode. Learned terms persist to a vocab store
-(`.vale-ste.vocab.yml` by default), which the CLI and the hook also read via
-config layering. Scope the store to a session with `vale mcp --vocab-store
-/tmp/vale-<session>.yml`, or leave the default to share learning across a
-project.
+The server runs in session mode. Learned terms persist to a vocab store —
+`$XDG_STATE_HOME/vale-ste/vocab.yml` (`~/.local/state/vale-ste/vocab.yml`) by
+default, the XDG location for state that survives restarts. The CLI and the hook
+read it too via config layering, so learning is honored everywhere. Scope the
+store to one session with `vale mcp --vocab-store /run/user/…/vale-<session>.yml`,
+or leave the default to share learning across sessions and projects.
 
 ### Client configuration
 

@@ -84,6 +84,13 @@ func discoverLayers(dir, explicit string) []string {
 			layers = append(layers, p)
 		}
 	}
+	// User-level learned vocabulary (XDG state), where the MCP persists by
+	// default. A user-global layer, below the project layers.
+	if p := DefaultVocabStorePath(); p != "" {
+		if info, err := os.Stat(p); err == nil && !info.IsDir() {
+			layers = append(layers, p)
+		}
+	}
 	if p := searchUp(dir, projectFileNames); p != "" {
 		layers = append(layers, p)
 	}

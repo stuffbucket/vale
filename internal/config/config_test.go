@@ -17,6 +17,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "xdg-home"))
 	os.Setenv("XDG_CONFIG_DIRS", filepath.Join(dir, "xdg-dirs"))
+	os.Setenv("XDG_STATE_HOME", filepath.Join(dir, "xdg-state"))
 	os.Setenv("HOME", filepath.Join(dir, "home"))
 	code := m.Run()
 	os.RemoveAll(dir)
@@ -360,5 +361,14 @@ func TestReadVocabStoreMissing(t *testing.T) {
 	a, d, err := ReadVocabStore(filepath.Join(t.TempDir(), "nope.yml"))
 	if err != nil || a != nil || d != nil {
 		t.Errorf("missing store = %v/%v/%v, want empty/nil", a, d, err)
+	}
+}
+
+func TestDefaultVocabStorePathUsesXDGState(t *testing.T) {
+	// TestMain sets XDG_STATE_HOME to an isolated temp dir.
+	got := DefaultVocabStorePath()
+	want := filepath.Join(os.Getenv("XDG_STATE_HOME"), "vale-ste", "vocab.yml")
+	if got != want {
+		t.Errorf("DefaultVocabStorePath = %q, want %q", got, want)
 	}
 }

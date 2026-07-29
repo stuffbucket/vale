@@ -264,11 +264,13 @@ func TestSessionServerLearnsVocabulary(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "xdg"))
 	t.Setenv("XDG_CONFIG_DIRS", filepath.Join(dir, "xdgdirs"))
+	t.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
+	store := filepath.Join(dir, "vocab.yml")
 	// Slop on so the watchlist word "delve" is flagged.
 	if err := os.WriteFile(filepath.Join(dir, ".vale-ste.yml"), []byte("slop:\n  enabled: true\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	s, err := NewSessionServer(SessionOptions{Dir: dir, Version: "t"})
+	s, err := NewSessionServer(SessionOptions{Dir: dir, StorePath: store, Version: "t"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,7 +286,7 @@ func TestSessionServerLearnsVocabulary(t *testing.T) {
 		t.Errorf("delve should be honored after learning: %+v", after)
 	}
 	// The store persisted.
-	if _, statErr := os.Stat(filepath.Join(dir, config.DefaultVocabStore)); statErr != nil {
+	if _, statErr := os.Stat(store); statErr != nil {
 		t.Errorf("vocab store not written: %v", statErr)
 	}
 }

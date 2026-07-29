@@ -4,19 +4,52 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 
 	"gopkg.in/yaml.v3"
 )
 
-// DefaultVocabStore is the file the MCP writes session-learned terms to. It is a
-// dedicated, vale-managed config fragment. Because it is a discovered layer (see
-// vocabStoreNames), the CLI and any hook honor learned terms too.
+// DefaultVocabStore is the project-scoped vocab store file name, discovered by
+// config layering. The MCP defaults to the user-level store (see
+// DefaultVocabStorePath); a project can pin a local one with this name.
 const DefaultVocabStore = ".vale-ste.vocab.yml"
 
-// vocabStoreNames are the discovered vocab-store file names. They sit just below
-// an explicit --config, so learned terms take precedence over project config.
+// vocabStoreNames are the discovered project vocab-store file names. They sit
+// just below an explicit --config, so learned terms outrank project config.
 var vocabStoreNames = []string{".vale-ste.vocab.yml", ".vale-ste.vocab.yaml"}
+
+// xdgStateHome returns $XDG_STATE_HOME, or ~/.local/state, or "".
+func xdgStateHome() string {
+	if v := os.Getenv("XDG_STATE_HOME"); v != "" {
+		return v
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".local", "state")
+}
+
+// StateDir is vale's XDG state directory (where learned data lives).
+func StateDir() string {
+	base := xdgStateHome()
+	if base == "" {
+		return ""
+	}
+	return filepath.Join(base, "vale-ste")
+}
+
+// DefaultVocabStorePath is where the MCP persists learned vocabulary by default:
+// a user-level XDG state file that survives restarts and is shared across
+// sessions and projects. It falls back to the project-scoped name when there is
+// no home directory.
+func DefaultVocabStorePath() string {
+	if dir := StateDir(); dir != "" {
+		return filepath.Join(dir, "vocab.yml")
+	}
+	return DefaultVocabStore
+}
 
 // vocabStoreDoc is the on-disk shape of a vocab store.
 type vocabStoreDoc struct {
@@ -67,6 +100,11 @@ func UpdateVocabStore(path string, addAllow, addDeny []string) (allow, deny []st
 		return nil, nil, err
 	}
 	_ = enc.Close()
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, nil, fmt.Errorf("create vocab store dir %s: %w", dir, err)
+		}
+	}
 	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
 		return nil, nil, fmt.Errorf("write vocab store %s: %w", path, err)
 	}

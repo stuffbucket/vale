@@ -17,7 +17,7 @@ func cmdMCP(args []string) int {
 	fs := flag.NewFlagSet("mcp", flag.ContinueOnError)
 	configPath := fs.String("config", "", "path to a config file")
 	vocabStore := fs.String("vocab-store", "",
-		"file for terms learned via update_vocabulary (default .vale-ste.vocab.yml; use a session-keyed path to scope to the session)")
+		"file for terms learned via update_vocabulary (default: $XDG_STATE_HOME/vale-ste/vocab.yml; use a per-session path to scope to the session)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}

@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"path/filepath"
 
 	"github.com/stuffbucket/vale/internal/config"
 	"github.com/stuffbucket/vale/internal/linter"
@@ -83,7 +82,7 @@ func NewServer(l *linter.Linter, version string) *Server {
 		linter:    l,
 		version:   orDev(version),
 		dir:       ".",
-		storePath: config.DefaultVocabStore,
+		storePath: config.DefaultVocabStorePath(),
 	}
 }
 
@@ -104,7 +103,7 @@ func NewSessionServer(opts SessionOptions) (*Server, error) {
 	}
 	store := opts.StorePath
 	if store == "" {
-		store = filepath.Join(dir, config.DefaultVocabStore)
+		store = config.DefaultVocabStorePath()
 	}
 	s := &Server{
 		version:    orDev(opts.Version),

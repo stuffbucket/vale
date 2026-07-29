@@ -12,11 +12,14 @@ to remember to call a lint tool — but the MCP surface should stay tight.
 
 ## Decision
 
-1. **A shared vocab store.** `.vale-ste.vocab.yml` (overridable) is a dedicated,
-   vale-managed config fragment (`vocabulary.allow` / `deny`). It is a discovered
-   config layer that sits just below an explicit `--config`, so the MCP, the CLI,
-   and the hook all honor learned terms. `config.UpdateVocabStore` rewrites it
-   wholesale (vale owns it); `config.ReadVocabStore` reads it.
+1. **A shared vocab store.** The MCP persists learned terms to
+   `$XDG_STATE_HOME/vale-ste/vocab.yml` (default `~/.local/state/vale-ste/`) — the
+   XDG location for reusable state that survives restarts, more permanent than
+   `/tmp`. It is a dedicated, vale-managed config fragment (`vocabulary.allow` /
+   `deny`) and a discovered config layer, so the MCP, the CLI, and the hook all
+   honor learned terms. A project may also pin a local `.vale-ste.vocab.yml`.
+   `config.UpdateVocabStore` rewrites the file (vale owns it) and creates its
+   directory; `config.ReadVocabStore` reads it.
 2. **Session-mode MCP.** `mcp.NewSessionServer` loads config from the working
    directory and rebuilds its linter after each vocab change. The
    `update_vocabulary` tool (allow / deny arrays) persists terms and reloads, so
