@@ -9,3 +9,7 @@ coverage.html
 # Editor and OS files
 .DS_Store
 *.swp
+
+# Python bytecode cache (from py_compile in the hook check)
+__pycache__/
+*.pyc
