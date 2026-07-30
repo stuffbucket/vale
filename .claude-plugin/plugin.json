@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "vale",
   "displayName": "vale — Simplified Technical English",
-  "description": "Simplified Technical English (ASD-STE100) linter and MCP server. Tools: lint_text, list_rules, and LLM-assisted fix_text. Bundles the ste-lint skill.",
-  "version": "0.14.0",
+  "description": "Simplified Technical English (ASD-STE100) linter and MCP server. Tools: lint_text, list_rules, and LLM-assisted fix_text. Also a stdio LSP server (vale lsp) for editor diagnostics. Bundles the ste-lint skill.",
+  "version": "0.15.0",
   "author": {
     "name": "stuffbucket",
     "url": "https://github.com/stuffbucket"

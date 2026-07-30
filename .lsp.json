@@ -1,0 +1,15 @@
+{
+  "lspServers": {
+    "vale": {
+      "command": "vale",
+      "args": ["lsp"],
+      "extensionToLanguage": {
+        ".md": "markdown",
+        ".markdown": "markdown",
+        ".mdown": "markdown",
+        ".mkd": "markdown",
+        ".txt": "plaintext"
+      }
+    }
+  }
+}

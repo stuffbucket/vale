@@ -408,6 +408,24 @@ The tool result `content` is a text block. It starts with a one-line summary and
 then a JSON block that holds the `findings` array and a `summary` count by
 severity.
 
+## Editor integration (LSP)
+
+`vale lsp` starts a stdio Language Server that gives editors live STE diagnostics.
+It speaks LSP over JSON-RPC 2.0 with Content-Length framing, lints each open
+document with the same engine as the CLI, and publishes findings as diagnostics
+(0-based, UTF-16 positions; `source` `vale`, `code` the rule ID). It handles
+`initialize`, `textDocument/didOpen` / `didChange` / `didSave` / `didClose`, and
+`shutdown`. Flags: `--config <path>` and `--slop`.
+
+The Claude Code plugin registers it automatically ([`.lsp.json`](.lsp.json)). For
+other editors, point your LSP client at `vale lsp` for Markdown and plain-text
+files. Example (Neovim):
+
+```lua
+vim.lsp.start({ name = "vale", cmd = { "vale", "lsp" },
+  filetypes = { "markdown", "text" } })
+```
+
 ## Self-referential generation
 
 The vocabulary rule is generated, not hand-written. `vale gen` reads

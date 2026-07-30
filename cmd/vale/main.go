@@ -16,6 +16,7 @@ Usage:
   vale [flags] <path>...        Check files or directories (the default action).
   vale lint [flags] <path>...   The same, stated explicitly.
   vale mcp                      Start the stdio MCP server.
+  vale lsp                      Start the stdio Language Server (editor diagnostics).
   vale gen [flags]              Build the vocabulary rules from the wordset.
   vale rules                    List the rules.
   vale eval [flags]             Measure slop across an LLM endpoint's models.
@@ -40,6 +41,8 @@ func run(args []string) int {
 		return cmdLint(rest)
 	case "mcp":
 		return cmdMCP(rest)
+	case "lsp":
+		return cmdLSP(rest)
 	case "gen":
 		return cmdGen(rest)
 	case "rules":
