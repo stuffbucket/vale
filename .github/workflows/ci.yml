@@ -29,6 +29,14 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Shellcheck (POSIX) + hook compile
+        # Install shellcheck in the runner (make setup is idempotent), then check
+        # every shell script as POSIX sh and byte-compile the Python hook.
+        run: |
+          make setup
+          make shellcheck
+          python3 -m py_compile hooks/lint-on-write.py
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:

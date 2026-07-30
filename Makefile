@@ -15,9 +15,22 @@ COVERPROFILE := coverage.txt
 
 export CGO_ENABLED := 0
 
-.PHONY: all build test cover lint fuzz gen mutation self-lint snapshot check clean
+.PHONY: all build test cover lint shellcheck fuzz gen mutation self-lint snapshot check setup clean
 
 all: build
+
+## setup: install developer tools (idempotent). Installs shellcheck when it is
+## not already on PATH, via Homebrew or apt.
+setup:
+	@if command -v shellcheck >/dev/null 2>&1; then \
+		echo "shellcheck present: $$(shellcheck --version | awk '/version:/{print $$2}')"; \
+	elif command -v brew >/dev/null 2>&1; then \
+		echo "installing shellcheck via Homebrew..."; brew install shellcheck; \
+	elif command -v apt-get >/dev/null 2>&1; then \
+		echo "installing shellcheck via apt..."; sudo apt-get update && sudo apt-get install -y shellcheck; \
+	else \
+		echo "install shellcheck manually: https://github.com/koalaman/shellcheck#installing"; exit 1; \
+	fi
 
 ## build: compile the vale binary.
 build:
@@ -35,6 +48,12 @@ cover:
 ## lint: run golangci-lint.
 lint:
 	golangci-lint run
+
+## shellcheck: check shell scripts as POSIX sh (run `make setup` to install it).
+shellcheck:
+	@files=$$(find . -name '*.sh' -not -path './.git/*' -not -path './dist/*'); \
+	if [ -n "$$files" ]; then shellcheck -s sh $$files && echo "shellcheck: clean"; \
+	else echo "shellcheck: no shell scripts"; fi
 
 ## fuzz: short fuzz smoke over the lint fuzz targets.
 fuzz:
@@ -57,8 +76,8 @@ self-lint: build
 snapshot:
 	goreleaser build --snapshot --clean
 
-## check: build, vet, lint, and test.
-check: build
+## check: build, vet, lint, shellcheck, and test.
+check: build shellcheck
 	$(GO) vet ./...
 	golangci-lint run
 	$(GO) test -race ./...
